@@ -1,2 +1,1 @@
 # testsol
-sol
