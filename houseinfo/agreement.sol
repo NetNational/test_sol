@@ -5,7 +5,7 @@ contract agreement {
 	 * _mrental: rent the house cicyle, monthNum: how many money of rent the house}
 	 */
 	constructor(address _signer, byte32 _houseId, uint _mrental, uint monthNum){
-
+		
 	}
 
 	
