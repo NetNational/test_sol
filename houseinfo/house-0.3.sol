@@ -1,11 +1,12 @@
 pragma solidity ^0.4.24;
 
 import '../../token/token.sol';
+import 'agreement.sol';
 
 contract RentBasic {
 
 	enum HouseState {
-		ReleaseRent,  // 发布租赁
+		ReleaseRent,  // 发布租赁中
 		Renting,  // 租赁中
 		EndRent,   // 完成租赁
 		Cance,   // 取消租赁
@@ -16,24 +17,24 @@ contract RentBasic {
 	// 房源基本信息
 	struct HouseInfo {			
 			uint8    landRate; // 房东信用等级 1、信用非常好，2、信用良好，3、信用一般，4、信用差
-		    uint8   ratingIndex;  // 评级指数
-		    uint8   huxing;  // 户型（1/2/3居）		    
+		    uint8    ratingIndex;  // 评级指数
+		    uint8    huxing;  // 户型（1/2/3居）		    
 			string   houseAddress; // 房屋地址			
-			bytes32   houseId;   // 房屋hash
-			bytes32   descibe;	// 房屋描述
+			bytes32  houseId;   // 房屋hash
+			bytes32  descibe;	// 房屋描述
 			bytes32	 landlordInfo; //房东情况 			
-			bytes32   hopeYou;  // 期待你的描述			
+			bytes32  hopeYou;  // 期待你的描述			
 			address  landlord; // 房东地址			
 	}
 	// 房源发布信息
 	struct HouseReleaseInfo {
 		HouseState    state;   // 当前的状态
-		uint32   tenancy; // 租期
-		uint256   rent; // 租金
-		uint   releaseTime;  // 发布时间
-		uint   updateTime; // 更新时间
-		uint   dealineTime;  // 截止时间
-		bool     existed; // 该hash对应的House是否存在
+		uint32        tenancy; // 租期
+		uint256       rent; // 租金
+		uint          releaseTime;  // 发布时间
+		uint          updateTime; // 更新时间
+		uint          dealineTime;  // 截止时间
+		bool          existed; // 该hash对应的House是否存在
 	}
 	// 租客对某一房源评价
 	struct RemarkHouse {
@@ -49,7 +50,7 @@ contract RentBasic {
 	}
 
 	RentToken token;
-	// HouseInfo[] public houseInfos;
+	TenancyAgreement tenancyContract;
 	HouseInfo hsInformation;
 	HouseReleaseInfo hsReleaseInfo;
 	mapping(bytes32 => HouseInfo) houseInfos;  // 房源基本信息映射
@@ -62,12 +63,13 @@ contract RentBasic {
 
 	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; // 接收房东交保证金地址
 	address public distributeRemarkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; // 发放奖励的地址
+	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; // 存放租客保证金的地址
 
 	uint256 public promiseAmount = 500 * (10 ** 8); // 保证金
 	uint256 public punishAmount = 5 * (10 ** 8); // 惩罚扣除
 	uint256 public remarkAmount = 2 * (10 ** 8); // 奖励数量
 
-	event ReleaseInfo(bytes32 houseHash, HouseState defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
+	event ReleaseInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
 	event ReleaseHouseBasicInfo(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, bytes32 _hopeYou,address indexed _landlord);		
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, bytes32 _ramark);
@@ -96,10 +98,9 @@ contract RentBasic {
 	function releaseHouse(string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, uint32 _tenancy, uint256 _rent, bytes32 _hopeYou) public returns (bool) {
 		uint256 nowTimes = now; 
 		uint256 deadTime = nowTimes + 7 days;
-		defaultState = HouseState.Renting;
 		address houseOwer = msg.sender;
 		// releaser should hold not less than 500 BLT
-		require(token.transferFrom(houseOwer, receiverPromiseMoney, promiseAmount) == true, "Please promise enough money, which is not less than 500 BLT!");
+		require(!token.transferFrom(houseOwer, receiverPromiseMoney, promiseAmount), "Please promise enough money, which is not less than 500 BLT!");
 		addrMoney[houseOwer] = promiseAmount;
 		bytes32 houseIds = keccak256(abi.encodePacked(houseOwer, nowTimes, deadTime));
 		hsInformation = HouseInfo({				
@@ -126,30 +127,69 @@ contract RentBasic {
 		hsReleaseInfos[houseIds] = hsReleaseInfo;
 		ReleaseHouseBasicInfo(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
 		ReleaseInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
-		// PulishMessage(_landlord, houseInfo, houseIds);
 	}
-
+	/*
+	* title deadReleaseHouse
+	* dev check whether the house alread dealine
+	* Param:  {_houseId: house hash} 
+	*/
+	function deadReleaseHouse(bytes _houseId) returns(bool) {
+		HouseReleaseInfo hsRelInfo = hsReleaseInfos[houseIds];
+		if (now > hsRelInfo.dealineTime && hsRelInfo.state == HouseState.Renting) {
+			hsReleaseInfos[_houseId].state = HouseState.Cance;
+			return true;
+		}
+		return false;
+	}
 	/**
 	 * title signContract
-	 * @dev  _renter and _leaser sign how long agreement. It may be also including approve, send key
-	 * Parm {_leaser: the address of the leaser, _renter：the address of the renter , signHowLong: how long of the agreement}
+	 * dev  _renter and _leaser sign how long agreement. It may be also including approve, send key
+	 * Parm {_leaser: the address of the leaser, _rental: month rental, signHowLong: how long of the agreement}
 	 */
-	function signContract(bytes32 _houseId, uint _signHowLong, uint _rental) public returns (bool) {
+	// function signContract(bytes32 _houseId, uint _signHowLong, uint _rental) public returns (bool) {
+	// 	HouseInfo hsInfo = houseInfos[_houseId];
+	// 	HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
+	// 	require(!hsReInfo.existed, "House is not existed");
+	// 	require(hsReInfo.state != HouseState.Renting, "House State is not right");
+	// 	uint256 nowTime = now;
+	// 	address sender = msg.sender;
+	// 	if (sender != hsInfo.landlord) {
+	// 		require(!token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
+	// 	} 
+	// 	tenancyContract = new TenancyAgreement()
+	// 	// pack message 
+	// 	bytes memory message = abi.encodePacked(sender, _houseId, _signHowLong, _rental, nowTime);
+	// 	// sign the message
+	// 	bytes32 signatrue = keccak256(message);
+	// 	// client start timer
+	// 	SignContract(sender, _houseId, _signHowLong, _rental, signatrue, nowTime);
+	// 	hsReleaseInfos[_houseId].state = HouseState.Renting;
+	// 	hsReleaseInfos[_houseId].updateTime = nowTime;
+	// }
+	/**
+	 * title signContract
+	 * dev leaser sign the agreement.
+	 * Parm {_leaser: the address of the leaser, _rental: month rental, signHowLong: how long of the agreement}
+	 */
+	function signAgreement(bytes32 _houseId,string _name,uint _signHowLong,uint _rental, uint256 _yearRent, 
+			uint256 _payTime, bool _waterChargeByRent) public returns (bool) {
 		HouseInfo hsInfo = houseInfos[_houseId];
 		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
 		require(!hsReInfo.existed, "House is not existed");
-		require(hsReInfo.state == HouseState.Renting, "House State is not right");
+		require(hsReInfo.state != HouseState.Renting, "House State is not right");
 		uint256 nowTime = now;
 		address sender = msg.sender;
 		if (sender != hsInfo.landlord) {
-			require(token.transferFrom(sender, hsInfo.landlord, _rental) == true, "Tenat's BLT not enough !");
+			require(!token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
 		} 
+		tenancyContract = new TenancyAgreement()
 		// pack message 
 		bytes memory message = abi.encodePacked(sender, _houseId, _signHowLong, _rental, nowTime);
 		// sign the message
 		bytes32 signatrue = keccak256(message);
 		// client start timer
 		SignContract(sender, _houseId, _signHowLong, _rental, signatrue, nowTime);
+		hsReleaseInfos[_houseId].state = HouseState.Renting;
 		hsReleaseInfos[_houseId].updateTime = nowTime;
 	}
 	/**
@@ -157,13 +197,13 @@ contract RentBasic {
 	 * dev  _renter and _leaser sign how long agreement. It may be also including approve, send key
 	 * Parm {_leaser: the address of the leaser, _renter：the address of the renter , signHowLong: how long of the agreement}
 	 */
-	 function withdrawPromise(bytes32 _houseId) {
+	 function withdrawPromise(bytes32 _houseId, uint amount) {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(!reInfo.existed, "Not find the house");
-	 	require(reInfo.state == HouseState.EndRent, "House rent is not finished");
-	 	require(addrMoney[msg.sender] == promiseAmount, "Amount is not same");
-	 	token.transfer(receiverPromiseMoney, addrMoney[msg.sender]);
+	 	require(reInfo.state != HouseState.EndRent || reInfo.state != HouseState.Cance, "House rent is not finished");
+	 	require(addrMoney[msg.sender] > amount && amount > 0 , "Amount is not ");
+	 	token.transferFrom(receiverPromiseMoney,msg.sender, amount);
 	 	uint256 nowTime = now;
 	 	hsReleaseInfos[_houseId].updateTime = nowTime;
 	 }
@@ -200,26 +240,30 @@ contract RentBasic {
 	function breakContract(bytes32 _houseId, string _reason) public returns (uint256 money) {
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
 		require(!relInfo.existed, "Require the house is existed");		
-		if (relInfo.landlord == msg.sender) {
+		if (relInfo.landlord == msg.sender && relInfo.state != HouseState.ReleaseRent) {
 			addrMoney[msg.sender] = addrMoney[msg.sender] - punishAmount;
 		}
-		hsReleaseInfos[_houseId].state = HouseState.EndRent;
+		// Update releaseHouse information
+		hsReleaseInfos[_houseId].state = HouseState.Cance;
 		hsReleaseInfos[_houseId].updateTime = now;	
 	}
 	/**
 	 * title commentHouse
-	 * dev 
+	 * dev leaser and rent comment echo other
 	 * Parm {_leaser: the address of the leaser, _renter：the address of the renter , _lockKey: the key of the door}
 	 */
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, bytes32 _ramark) {
 		address sender = msg.sender;
+		HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
+		require(!reInfo.existed, "Not find the house");
+	 	require(reInfo.state != HouseState.EndRent, "House rent is not finished");
 		if (houseInfos[_houseId].landlord == sender) {
 			remarks[_houseId] = RemarkHouse({sender, _ratingIndex, _ramark});
 		} else {
 			remarkTenants[_houseId] = RemarkTenant({sender, _ratingIndex, _ramark});
 		}
 		require(!token.transferFrom(distributeRemarkAddr,sender, remarkAmount), "Reward distribute fail !");
-		CommentHouse(sender, _rating, _ramark)
+		CommentHouse(sender, _rating, _ramark);
 	}
 	/**
 	 * title sendKey

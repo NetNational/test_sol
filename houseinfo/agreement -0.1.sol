@@ -1,4 +1,4 @@
-contract agreement {
+contract TenancyAgreement {
 	struct Agreement {
 		string  leaser; // 出租方
 		string  tenant; // 承租方
@@ -29,13 +29,39 @@ contract agreement {
 		uint256  leaserSignTime; // 甲方签订日期
 		uint256  tenantSignTime; // 乙方签订日期 
 	}
+	mapping(bytes32 => Agreement) agree;
+	mapping(bytes32 => FeeAndClause) feeCaluse;
+	mapping(bytes32 => OtherClause) otherClauses;
+	uint8 public defaultWaitTime   = 
+	uint8 public defaultWaitPeriod = 
+	uint8 public defaultOwnFee  = 
 	/**
 	 * dev rent house agreement
 	 * Parm {_signer: sign the agreement, _houseId: the hash of the house,
 	 * _mrental: rent the house cicyle, monthNum: how many money of rent the house}
 	 */
-	constructor(address _signer, byte32 _houseId, uint _mrental, uint monthNum){
-		
+	constructor(string _leaser, string _tenant, byte32 _houseId, string _houseAddress, bytes32 _describe,
+			uint256 _rental, uint8 _signHowLong, uint256 _payTime,_waterChargeByRentbool _waterChargeByRent){
+		uint256 start = now;
+		uint256 end  = startTime + (_signHowLong * 30) days;
+		agrees[_houseId] = Agreement({
+			leaser: _leaser,
+			tenant: _tenant,
+			houseAddress: _houseAddress,
+			describe: _describe,
+			leaseTerm: _signHowLong,
+			startTime: start,
+			endTime: end
+		});
+		feeCaluses[_houseId] = FeeAndClause({
+			rent: _rental,
+			yearRent: 12 * _rental,
+			payTime: _payTime,
+			waterEleCharge: _waterChargeByRent,
+			waitTime: defaultWaitTime,
+			unpayTime: defaultWaitPeriod, 
+			arrearsTime: defaultOwnFee
+		});
 	}
 
 	
