@@ -89,6 +89,12 @@ contract RentBasic {
 		uint          dealineTime;  // 截止时间
 		bool          existed; // 该hash对应的House是否存在
 	}
+	// 租赁关系信息
+	// struct HouseRelation {
+	// 	HouseState    state;
+	// 	address  leaser;
+	// 	address  tenant;		
+	// }
 	// 租客对某一房源评价
 	struct RemarkHouse {
 		address tenant; // 租客地址
@@ -111,7 +117,10 @@ contract RentBasic {
 	mapping(address => uint) addrMoney;  // 用户对应地址所交保证金
 	mapping(bytes32 => RemarkHouse) remarks; // 租客对房子以房东的评价
 	mapping(bytes32 => RemarkTenant) remarkTenants; // 房东对租客评价的集合
-	mapping(bytes32 => (address => uint)) bonds; // 租客对某一房子所交保证金
+	mapping(bytes32 => mapping(address => uint)) bonds; // 租客对某一房子所交保证金
+	// mapping(bytes32 => HouseRelation) releations; // 房屋hash映射租赁关系
+	mapping(address => address) l2rMaps; // 房东与租客的映射
+
 	address public owner; // 合约发布者
 
 	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; // 接收房东交保证金地址
@@ -179,6 +188,7 @@ contract RentBasic {
 		});
 		houseInfos[houseIds] = hsInformation;
 		hsReleaseInfos[houseIds] = hsReleaseInfo;
+		// releations[houseId].leaser = houseOwer;
 		ReleaseHouseBasicInfo(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
 		ReleaseInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
 	}
@@ -206,6 +216,9 @@ contract RentBasic {
 		require(hsReInfo.state != defaultState, "House State is not in release");
 		require(!token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
+		bonds[_houseId][msg.sender] = _realRent;
+		// releations[_houseId].tenant = msg.sender;
+		l2rMaps[hsInfo.landlord] = msg.sender
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 	}
 	/**
@@ -213,7 +226,7 @@ contract RentBasic {
 	 * dev leaser sign the agreement.
 	 * Parm {_leaser: the address of the leaser, _rental: month rental, signHowLong: how long of the agreement}
 	 */
-	function signAgreement(bytes32 _houseId,string _name,uint _signHowLong,uint _rental, uint256 _yearRent) public returns (bool) {
+	function signAgreement(bytes32 _houseId,string _name, uint _signHowLong,uint _rental, uint256 _yearRent) public returns (bool) {
 		HouseInfo hsInfo = houseInfos[_houseId];
 		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
 		require(!hsReInfo.existed, "House is not existed");
@@ -225,6 +238,7 @@ contract RentBasic {
 		bytes32 signatrue = keccak256(message);
 		address sender = msg.sender;
 		if (sender != hsInfo.landlord) {
+			require(bonds[_houseId][sender] > 0, "Require the tenant have enough bond");
 			require(!token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
 			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
 		} else {
@@ -245,9 +259,12 @@ contract RentBasic {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(!reInfo.existed, "Not find the house");
+	 	require(msg.sender != reInfo.landlord, "It can be called only by landlord");
 	 	require(reInfo.state != HouseState.EndRent || reInfo.state != HouseState.Cance, "House rent is not finished");
 	 	require(addrMoney[msg.sender] > amount && amount > 0 , "Amount is not ");
-	 	token.transferFrom(receiverPromiseMoney,msg.sender, amount);
+	 	token.transferFrom(receiverPromiseMoney, msg.sender, amount);
+	 	// Return the bond to the tenant
+	 	token.transferFrom(saveTenanantAddr, l2rMaps[msg.sender], bonds[_houseId][l2rMaps[msg.sender]]);
 	 	uint256 nowTime = now;
 	 	hsReleaseInfos[_houseId].updateTime = nowTime;
 	 }
