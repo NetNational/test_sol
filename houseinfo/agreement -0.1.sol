@@ -4,7 +4,7 @@ contract TenancyAgreement {
 		string  tenant; // 承租方
 		string  houseAddress; // 房屋地址
 		bytes32 describe; // 房屋描述  
-		uint32  leaseTerm; //租赁期限
+		uint8  leaseTerm; //租赁期限
 		uint256 startTime; // 租赁开始
 		uint256 endTime; // 结束租赁时间
 	}

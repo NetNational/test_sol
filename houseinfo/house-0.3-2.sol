@@ -59,7 +59,6 @@ contract TenancyAgreement {
 contract RentBasic {
 	enum HouseState {
 		ReleaseRent,  // 发布租赁中
-		WaitRent,   // 租客交付定金后，请求租赁中
 		Renting,  // 租赁中
 		EndRent,   // 完成租赁
 		Cance,   // 取消租赁
@@ -111,7 +110,7 @@ contract RentBasic {
 	mapping(address => uint) addrMoney;  // 用户对应地址所交保证金
 	mapping(bytes32 => RemarkHouse) remarks; // 租客对房子以房东的评价
 	mapping(bytes32 => RemarkTenant) remarkTenants; // 房东对租客评价的集合
-	mapping(bytes32 => (address => uint)) bonds; // 租客对某一房子所交保证金
+	mapping(bytes32 => (address => uint)) bonds;
 	address public owner; // 合约发布者
 
 	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; // 接收房东交保证金地址
@@ -126,7 +125,6 @@ contract RentBasic {
 	event ReleaseHouseBasicInfo(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, bytes32 _hopeYou,address indexed _landlord);		
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, bytes32 _ramark);
-	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr)
 	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
 	
 	function constructor() {
@@ -196,18 +194,30 @@ contract RentBasic {
 		return false;
 	}
 	/**
-	 * title requestSign
-	 * dev tenant request sign the agreement.
+	 * title signContract
+	 * dev  _renter and _leaser sign how long agreement. It may be also including approve, send key
 	 * Parm {_leaser: the address of the leaser, _rental: month rental, signHowLong: how long of the agreement}
 	 */
-	function requestSign(bytes32 _houseId, uint256 _realRent) {
-		HouseInfo hsInfo = houseInfos[_houseId];
-		require(!hsReInfo.existed, "House is not existed");
-		require(hsReInfo.state != defaultState, "House State is not in release");
-		require(!token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
-		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
-		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
-	}
+	// function signContract(bytes32 _houseId, uint _signHowLong, uint _rental) public returns (bool) {
+	// 	HouseInfo hsInfo = houseInfos[_houseId];
+	// 	HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
+	// 	require(!hsReInfo.existed, "House is not existed");
+	// 	require(hsReInfo.state != HouseState.Renting, "House State is not right");
+	// 	uint256 nowTime = now;
+	// 	address sender = msg.sender;
+	// 	if (sender != hsInfo.landlord) {
+	// 		require(!token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
+	// 	} 
+	// 	tenancyContract = new TenancyAgreement()
+	// 	// pack message 
+	// 	bytes memory message = abi.encodePacked(sender, _houseId, _signHowLong, _rental, nowTime);
+	// 	// sign the message
+	// 	bytes32 signatrue = keccak256(message);
+	// 	// client start timer
+	// 	SignContract(sender, _houseId, _signHowLong, _rental, signatrue, nowTime);
+	// 	hsReleaseInfos[_houseId].state = HouseState.Renting;
+	// 	hsReleaseInfos[_houseId].updateTime = nowTime;
+	// }
 	/**
 	 * title signContract
 	 * dev leaser sign the agreement.
@@ -217,7 +227,7 @@ contract RentBasic {
 		HouseInfo hsInfo = houseInfos[_houseId];
 		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
 		require(!hsReInfo.existed, "House is not existed");
-		require(hsReInfo.state != HouseState.WaitRent, "House State is not in wait rent");
+		require(hsReInfo.state != HouseState.Renting, "House State is not right");
 		uint256 nowTime = now;
 		// pack message 
 		bytes memory message = abi.encodePacked(sender, _houseId, _signHowLong, _rental, nowTime);

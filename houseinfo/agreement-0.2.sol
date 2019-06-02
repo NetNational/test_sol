@@ -4,7 +4,11 @@ contract TenancyAgreement {
 		string  tenant; // 承租方
 		string  houseAddress; // 房屋地址
 		bytes32 describe; // 房屋描述  
-		uint32  leaseTerm; //租赁期限
+		bytes32 leaserSign, // 甲方签名 
+		bytes32 tenantSign; // 乙方签名
+		uint8  leaseTerm; //租赁期限
+		uint256 rent; // 每月租金
+		uint256 yearRent; // 年租金
 		uint256 startTime; // 租赁开始
 		uint256 endTime; // 结束租赁时间
 	}
@@ -32,7 +36,7 @@ contract TenancyAgreement {
 	// 	bytes32 tenantSign; // 乙方签名
 	// }
 	mapping(bytes32 => Agreement) agrees;
-	mapping(bytes32 => FeeAndClause) feeCaluses;
+	// mapping(bytes32 => FeeAndClause) feeCaluses;
  
 	/**
 	 * dev rent house agreement
@@ -40,7 +44,7 @@ contract TenancyAgreement {
 	 * _rental: rent the house cicyle, monthNum: how many money of rent the house}
 	 */
 	constructor(string _leaser, string _tenant, byte32 _houseId, string _houseAddress, bytes32 _describe,
-			uint256 _rental, uint8 _signHowLong, uint256 _payTime,_waterChargeByRentbool _waterChargeByRent){
+			uint256 _rental, uint8 _signHowLong){
 		uint256 start = now;
 		uint256 end  = startTime + (_signHowLong * 30) days;
 		agrees[_houseId] = Agreement({
@@ -49,17 +53,10 @@ contract TenancyAgreement {
 			houseAddress: _houseAddress,
 			describe: _describe,
 			leaseTerm: _signHowLong,
-			startTime: start,
-			endTime: end
-		});
-		feeCaluses[_houseId] = FeeAndClause({
 			rent: _rental,
 			yearRent: 12 * _rental,
-			payTime: _payTime,
-			waterEleCharge: _waterChargeByRent,
-			waitTime: defaultWaitTime,
-			unpayTime: defaultWaitPeriod, 
-			arrearsTime: defaultOwnFee
+			startTime: start,
+			endTime: end
 		});
 	}
 
