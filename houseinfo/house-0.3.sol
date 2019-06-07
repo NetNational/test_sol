@@ -19,7 +19,7 @@ contract TenancyAgreement {
 	}
 	mapping(bytes32 => Agreement) agrees;
 	/**
-	 * dev rent house agreement
+	 * dev rent house agreement, landlord call this agreement.
 	 * Parm {_leaser: who rents out the house, _tenant: who rent the house, _houseId: the hash of the house,
 	 * _houseAddress: the house position, _describe: the house describe, _rental: monthly rent, _signHowLong: lease term}
 	 */
@@ -33,7 +33,10 @@ contract TenancyAgreement {
 			rent: _rental
 		});
 	}
-
+	/* title: tenantSign
+	*  dev: tenant call this method to sign the rent house agreement 
+	*  Param: 
+	*/
 	function tenantSign(bytes32 _houseId, string _tenant, uint256 _rental, uint8 _signHowLong, 
 			bytes32 _signInfo) public returns(bool) {
 		uint256 start = now;
@@ -44,7 +47,10 @@ contract TenancyAgreement {
 		agrees[_houseId].endTime = end;
 		agrees[_houseId].isSign  = true;
 	}
-
+	/* title: getAgreement
+	*  dev: According to the house hash, query the agreement. 
+	*  Param: 
+	*/
 	function getAgreement(bytes32 _houseId) public returns(string, string, string, bytes32, byte32, bytes32) {
 		Agreement ag = agrees[_houseId];
 		return (ag.leaser, ag.tenant, ag.houseAddress, ag.describe, ag.leaserSign, ag.tenantSign);
@@ -128,8 +134,8 @@ contract RentBasic {
 	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; // 存放租客保证金的地址
 
 	uint256 public promiseAmount = 500 * (10 ** 8); // 保证金
-	uint256 public punishAmount = 5 * (10 ** 8); // 惩罚扣除
-	uint256 public remarkAmount = 2 * (10 ** 8); // 奖励数量
+	uint256 public punishAmount = 10 * (10 ** 8); // 惩罚扣除
+	uint256 public remarkAmount = 4 * (10 ** 8); // 奖励数量
 
 	event ReleaseInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
 	event ReleaseHouseBasicInfo(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, bytes32 _hopeYou,address indexed _landlord);		
@@ -198,7 +204,7 @@ contract RentBasic {
 	* Param:  {_houseId: house hash} 
 	*/
 	function deadReleaseHouse(bytes _houseId) returns(bool) {
-		HouseReleaseInfo hsRelInfo = hsReleaseInfos[houseIds];
+		HouseReleaseInfo hsRelInfo = hsReleaseInfos[_houseId];
 		if (now > hsRelInfo.dealineTime && hsRelInfo.state == HouseState.Renting) {
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
 			return true;
@@ -262,9 +268,11 @@ contract RentBasic {
 	 	require(msg.sender != reInfo.landlord, "It can be called only by landlord");
 	 	require(reInfo.state != HouseState.EndRent || reInfo.state != HouseState.Cance, "House rent is not finished");
 	 	require(addrMoney[msg.sender] > amount && amount > 0 , "Amount is not ");
-	 	token.transferFrom(receiverPromiseMoney, msg.sender, amount);
+	 	require(!token.transferFrom(receiverPromiseMoney, msg.sender, amount));
+	 	addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
 	 	// Return the bond to the tenant
-	 	token.transferFrom(saveTenanantAddr, l2rMaps[msg.sender], bonds[_houseId][l2rMaps[msg.sender]]);
+	 	require(!token.transferFrom(saveTenanantAddr, l2rMaps[msg.sender], bonds[_houseId][l2rMaps[msg.sender]]), "Transfer fail");
+	 	bonds[_houseId][l2rMaps[msg.sender]] = 0;  // clear the tenant bond
 	 	uint256 nowTime = now;
 	 	hsReleaseInfos[_houseId].updateTime = nowTime;
 	 }
