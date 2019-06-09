@@ -1,6 +1,6 @@
 pragma solidity ^0.4.24;
 
-import './token.sol';
+import '../../token/token.sol';
 
 contract TenancyAgreement {
 	struct Agreement {
@@ -8,9 +8,9 @@ contract TenancyAgreement {
 		string  tenant; // 承租方
 		string  houseAddress; // 房屋地址
 		bytes32 describe; // 房屋描述  
-		bytes32 leaserSign; // 甲方签名 
+		bytes32 leaserSign, // 甲方签名 
 		bytes32 tenantSign; // 乙方签名
-		uint256  leaseTerm; //租赁期限
+		uint8  leaseTerm; //租赁期限
 		uint256 rent; // 每月租金
 		uint256 yearRent; // 年租金
 		uint256 startTime; // 租赁开始
@@ -23,25 +23,27 @@ contract TenancyAgreement {
 	 * Parm {_leaser: who rents out the house, _tenant: who rent the house, _houseId: the hash of the house,
 	 * _houseAddress: the house position, _describe: the house describe, _rental: monthly rent, _signHowLong: lease term}
 	 */
-	constructor(string _leaser, bytes32 _houseId, string _houseAddress, bytes32 _describe, bytes32 _signInfo,
-			uint256 _rental, uint _signHowLong){	
-		agrees[_houseId].leaser = _leaser;
-		agrees[_houseId].houseAddress = _houseAddress;
-		agrees[_houseId].describe = _describe;
-		agrees[_houseId].leaseTerm = _signHowLong;
-		agrees[_houseId].rent = _rental;	
+	constructor(string _leaser, byte32 _houseId, string _houseAddress, bytes32 _describe, bytes32 _signInfo,
+			uint256 _rental, uint8 _signHowLong){		
+		agrees[_houseId] = Agreement({
+			leaser: _leaser,
+			houseAddress: _houseAddress,
+			describe: _describe,
+			leaseTerm: _signHowLong,
+			rent: _rental
+		});
 	}
 	/* title: tenantSign
 	*  dev: tenant call this method to sign the rent house agreement 
 	*  Param: 
 	*/
-	function tenantSign(bytes32 _houseId, string _tenant, uint256 _rental, uint _signHowLong, 
+	function tenantSign(bytes32 _houseId, string _tenant, uint256 _rental, uint8 _signHowLong, 
 			bytes32 _signInfo) public returns(bool) {
-		uint256 startTime = now;
-		uint256 end  = startTime + (_signHowLong * 30) * 1 days;
+		uint256 start = now;
+		uint256 end  = startTime + (_signHowLong * 30) days;
 		agrees[_houseId].tenant = _tenant;
 		agrees[_houseId].yearRent = 12 * _rental;
-		agrees[_houseId].startTime = startTime;
+		agrees[_houseId].startTime = start;
 		agrees[_houseId].endTime = end;
 		agrees[_houseId].isSign  = true;
 	}
@@ -49,14 +51,11 @@ contract TenancyAgreement {
 	*  dev: According to the house hash, query the agreement. 
 	*  Param: 
 	*/
-	function getAgreement(bytes32 _houseId) public returns(string, string, string, bytes32, bytes32, bytes32) {
+	function getAgreement(bytes32 _houseId) public returns(string, string, string, bytes32, byte32, bytes32) {
 		Agreement ag = agrees[_houseId];
 		return (ag.leaser, ag.tenant, ag.houseAddress, ag.describe, ag.leaserSign, ag.tenantSign);
 	}
-	/* title: getRentTenancyInfo
-	*  dev: Get Rent tenancy time inforamation 
-	*  Param: 
-	*/
+	
 	function getRentTenancyInfo(bytes32 _houseId) public returns(uint256, uint256, uint256, uint256) {
 		Agreement ag = agrees[_houseId];
 		return (ag.rent, ag.yearRent, ag.startTime, ag.endTime);
@@ -96,11 +95,17 @@ contract RentBasic {
 		uint          dealineTime;  // 截止时间
 		bool          existed; // 该hash对应的House是否存在
 	}
+	// 租赁关系信息
+	// struct HouseRelation {
+	// 	HouseState    state;
+	// 	address  leaser;
+	// 	address  tenant;		
+	// }
 	// 租客对某一房源评价
 	struct RemarkHouse {
-		address tenant; // 租客地址	
-		uint8   ratingIndex; // 评级级别
+		address tenant; // 租客地址		
 		bytes32 remarkLandlord; // 对房东评价
+		uint8   ratingIndex; // 评级级别
 		uint256 operateTime; // 评论时间
 	}
 	// 房东对某一租客评价
@@ -139,10 +144,10 @@ contract RentBasic {
 	event ReleaseHouseBasicInfo(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, bytes32 _hopeYou,address indexed _landlord);		
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, bytes32 _ramark);
-	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr);
+	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr)
 	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
 	
-	constructor() {
+	function constructor() {
 		owner = msg.sender;
 		token = RentToken(msg.sender);
 	}
@@ -201,7 +206,7 @@ contract RentBasic {
 	* dev check whether the house alread dealine
 	* Param:  {_houseId: house hash} 
 	*/
-	function deadReleaseHouse(bytes32 _houseId) returns(bool) {
+	function deadReleaseHouse(bytes _houseId) returns(bool) {
 		HouseReleaseInfo hsRelInfo = hsReleaseInfos[_houseId];
 		if (now > hsRelInfo.dealineTime && hsRelInfo.state == HouseState.Renting) {
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
@@ -216,15 +221,13 @@ contract RentBasic {
 	 */
 	function requestSign(bytes32 _houseId, uint256 _realRent) {
 		HouseInfo hsInfo = houseInfos[_houseId];
-		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
-		address sender = msg.sender;
 		require(!hsReInfo.existed, "House is not existed");
 		require(hsReInfo.state != defaultState, "House State is not in release");
 		require(!token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
 		bonds[_houseId][msg.sender] = _realRent;
 		// releations[_houseId].tenant = msg.sender;
-		l2rMaps[hsInfo.landlord] = sender;
+		l2rMaps[hsInfo.landlord] = msg.sender
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 	}
 	/**
@@ -248,7 +251,7 @@ contract RentBasic {
 			require(!token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
 			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
 		} else {
-			tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue,
+			tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.describe, signatrue,
 		        _rental, _signHowLong);
 			hsReleaseInfos[_houseId].state = HouseState.Renting;
 		}
@@ -265,7 +268,7 @@ contract RentBasic {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(!reInfo.existed, "Not find the house");
-	 	require(msg.sender != hs.landlord, "It can be called only by landlord");
+	 	require(msg.sender != reInfo.landlord, "It can be called only by landlord");
 	 	require(reInfo.state != HouseState.EndRent || reInfo.state != HouseState.Cance, "House rent is not finished");
 	 	require(addrMoney[msg.sender] > amount && amount > 0 , "Amount is not ");
 	 	require(!token.transferFrom(receiverPromiseMoney, msg.sender, amount));
@@ -305,10 +308,9 @@ contract RentBasic {
 	 * TODO punishAmount
 	 */
 	function breakContract(bytes32 _houseId, string _reason) public returns (uint256 money) {
-		HouseInfo hs = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
 		require(!relInfo.existed, "Require the house is existed");		
-		if (hs.landlord == msg.sender && relInfo.state != HouseState.ReleaseRent) {
+		if (relInfo.landlord == msg.sender && relInfo.state != HouseState.ReleaseRent) {
 			addrMoney[msg.sender] = addrMoney[msg.sender] - punishAmount;
 		}
 		// Update releaseHouse information
@@ -317,33 +319,21 @@ contract RentBasic {
 	}
 	/**
 	 * title commentHouse
-	 * dev leaser and tenant comment echo other
-	 * Parm {_houseId: the house hash, _ratingIndex: remarkable record (1-10) , _ramark: remark about the house or the tenant}
+	 * dev leaser and rent comment echo other
+	 * Parm {_leaser: the address of the leaser, _renter：the address of the renter , _lockKey: the key of the door}
 	 */
-	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, bytes32 _ramark) returns(bool) {
+	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, bytes32 _ramark) {
 		address sender = msg.sender;
 		HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 		require(!reInfo.existed, "Not find the house");
 	 	require(reInfo.state != HouseState.EndRent, "House rent is not finished");
 		if (houseInfos[_houseId].landlord == sender) {
-			remarks[_houseId] = RemarkHouse(sender, _ratingIndex, _ramark, now);
-			creditManager[l2rMaps[sender]] += _ratingIndex; 
+			remarks[_houseId] = RemarkHouse({sender, _ratingIndex, _ramark, now});
 		} else {
-			address landlord = houseInfos[_houseId].landlord;
-			creditManager[landlord] += _ratingIndex;
-			remarkTenants[_houseId] = RemarkTenant(sender, _ratingIndex, _ramark, now);
+			remarkTenants[_houseId] = RemarkTenant({sender, _ratingIndex, _ramark, operateTime});
 		}
 		require(!token.transferFrom(distributeRemarkAddr,sender, remarkAmount), "Reward distribute fail !");
-		CommentHouse(sender, _ratingIndex, _ramark);
-		return true;
-	}
-	/**
-	 * title getCreditRecord
-	 * dev Get the person of the address credit record
-	 * Parm {_viewer: the address of who viewed}
-	 */
-	function getCreditRecord(address _viewer) returns(uint) {
-		return creditManager[_viewer];
+		CommentHouse(sender, _rating, _ramark);
 	}
 	/**
 	 * title sendKey
