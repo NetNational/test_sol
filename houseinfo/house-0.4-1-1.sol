@@ -7,7 +7,7 @@ contract TenancyAgreement {
 		string  leaser; // 出租方
 		string  tenant; // 承租方
 		string  houseAddress; // 房屋地址
-		bytes32 describe; // 房屋描述  
+		string describe; // 房屋描述  
 		bytes32 leaserSign; // 甲方签名 
 		bytes32 tenantSign; // 乙方签名
 		uint256  leaseTerm; //租赁期限
@@ -23,7 +23,7 @@ contract TenancyAgreement {
 	 * Parm {_leaser: who rents out the house, _tenant: who rent the house, _houseId: the hash of the house,
 	 * _houseAddress: the house position, _describe: the house describe, _rental: monthly rent, _signHowLong: lease term}
 	 */
-	constructor(string _leaser, bytes32 _houseId, string _houseAddress, bytes32 _describe, bytes32 _signInfo,
+	constructor(string _leaser, bytes32 _houseId, string _houseAddress, string _describe, bytes32 _signInfo,
 			uint256 _rental, uint _signHowLong){	
 		agrees[_houseId].leaser = _leaser;
 		agrees[_houseId].houseAddress = _houseAddress;
@@ -50,7 +50,7 @@ contract TenancyAgreement {
 	*  dev: According to the house hash, query the agreement. 
 	*  Param: 
 	*/
-	function getAgreement(bytes32 _houseId) public returns(string, string, string, bytes32, bytes32, bytes32) {
+	function getAgreement(bytes32 _houseId) public returns(string, string, string, string, bytes32, bytes32) {
 		Agreement ag = agrees[_houseId];
 		return (ag.leaser, ag.tenant, ag.houseAddress, ag.describe, ag.leaserSign, ag.tenantSign);
 	}
@@ -82,9 +82,9 @@ contract RentBasic {
 		    uint8    huxing;  // 户型（1/2/3居）		    
 			string   houseAddress; // 房屋地址			
 			bytes32  houseId;   // 房屋hash
-			bytes32  descibe;	// 房屋描述
-			bytes32	 landlordInfo; //房东情况 			
-			bytes32  hopeYou;  // 期待你的描述			
+			string  descibe;	// 房屋描述
+			string	 landlordInfo; //房东情况 			
+			string  hopeYou;  // 期待你的描述			
 			address  landlord; // 房东地址			
 	}
 	// 房源发布信息
@@ -101,14 +101,14 @@ contract RentBasic {
 	struct RemarkHouse {
 		address tenant; // 租客地址	
 		uint8   ratingIndex; // 评级级别
-		bytes32 remarkLandlord; // 对房东评价
+		string remarkLandlord; // 对房东评价
 		uint256 operateTime; // 评论时间
 	}
 	// 房东对某一租客评价
 	struct RemarkTenant {
 		address leaser; // 房东
 		uint8   ratingIndex; // 评价级别
-		bytes32 remarkTenant; // 对租客评价
+		string remarkTenant; // 对租客评价
 		uint256 operateTime; // 评论时间
 	}
 
@@ -137,9 +137,9 @@ contract RentBasic {
 	uint256 public remarkAmount = 4 * (10 ** 8); // 奖励数量
 
 	event ReleaseInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
-	event ReleaseHouseBasicInfo(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, bytes32 _hopeYou,address indexed _landlord);		
+	event ReleaseHouseBasicInfo(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,string _describe, string _info, string _hopeYou,address indexed _landlord);		
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
-	event CommentHouse(address indexed _commenter, uint8 _rating, bytes32 _ramark);
+	event CommentHouse(address indexed _commenter, uint8 _rating, string _ramark);
 	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr);
 	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
 	
@@ -163,7 +163,7 @@ contract RentBasic {
 	 * dev leaser rent out the house
 	 * Parm {_leaser: the address of the leaser, _lockKey：the key of the door , _value: the cash deposit}
 	 */
-	function releaseHouse(string _houseAddr,uint8 _huxing,bytes32 _describe, bytes32 _info, uint32 _tenancy, uint256 _rent, bytes32 _hopeYou) public returns (bool) {
+	function releaseHouse(string _houseAddr,uint8 _huxing,string _describe, string _info, uint32 _tenancy, uint256 _rent, string _hopeYou) public returns (bool) {
 		uint256 nowTimes = now; 
 		uint256 deadTime = nowTimes + 7 days;
 		address houseOwer = msg.sender;
@@ -282,8 +282,8 @@ contract RentBasic {
 	 * dev get release rent house information
 	 * Parm {_index: the house informaion position}
 	 */
-	function getHouseBasicInfo(bytes32 _houseId) public returns(bytes32, uint8, string, uint8, bytes32, 
-		bytes32, bytes32, address) {
+	function getHouseBasicInfo(bytes32 _houseId) public returns(bytes32, uint8, string, uint8, string, 
+		string, string, address) {
 		HouseInfo houseInfo = houseInfos[_houseId];
 		return (_houseId, houseInfo.ratingIndex, houseInfo.houseAddress, houseInfo.huxing,houseInfo.descibe,
 			  houseInfo.landlordInfo,houseInfo.hopeYou, houseInfo.landlord);		
@@ -321,7 +321,7 @@ contract RentBasic {
 	 * dev leaser and tenant comment echo other
 	 * Parm {_houseId: the house hash, _ratingIndex: remarkable record (1-10) , _ramark: remark about the house or the tenant}
 	 */
-	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, bytes32 _ramark) returns(bool) {
+	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) returns(bool) {
 		address sender = msg.sender;
 		HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 		require(!reInfo.existed, "Not find the house");

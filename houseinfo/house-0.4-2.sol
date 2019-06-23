@@ -1,5 +1,10 @@
-pragma solidity ^0.4.24;
-//  RentHouse Foundation.
+pragma solidity ^0.4.18;
+
+// ----------------------------------------------------------------------------------------------
+//Bit Capital Vendor by BitCV Foundation.
+// An ERC20 standard
+//
+// author: BitCV Foundation Team
 
 contract ERC20Interface {
     function totalSupply() public constant returns (uint256 _totalSupply);
@@ -12,21 +17,18 @@ contract ERC20Interface {
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
 }
 
-contract RentToken is ERC20Interface {
-    using SafeMath for uint256;
+contract BIV is ERC20Interface {
     uint256 public constant decimals = 8;
 
-    string public constant symbol = "RentToken";
-    string public constant name = "BLT";
+    string public constant symbol = "BiV";
+    string public constant name = "Bt";
 
-    uint256 public _totalSupply = 40 * (10 ** 8) * (10 ** 8); // total supply is 4 billion
-    uint256 public _maxIncreaseAmount = 2 * (10 ** 8) * (10 ** 8); //  every time max increase 20 millions
-    uint256 public _increaseInterval = 1 years;  // 6 month interval can increase
+    uint256 public _totalSupply = 120000000000000000; // total supply is 1.2 billion
 
     // Owner of this contract
     address public owner;
 
-    // Balances AAC for each account
+    // Balances BIV for each account
     mapping(address => uint256) private balances;
 
     // Owner of account approves the transfer of an amount to another account
@@ -41,7 +43,7 @@ contract RentToken is ERC20Interface {
 
     // totalTokenSold
     uint256 public totalTokenSold = 0;
-    uint256 public releaseTokenTime = block.timestamp;
+
 
     /**
      * @dev Fix for the ERC20 short address attack.
@@ -52,16 +54,11 @@ contract RentToken is ERC20Interface {
       }
       _;
     }
-    /**
-    *  @dev Only owner can modifer 
-    */
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
+
+
 
     /// @dev Constructor
-    function RentToken()
+    function BIV()
         public {
         owner = msg.sender;
         balances[owner] = _totalSupply;
@@ -117,17 +114,23 @@ contract RentToken is ERC20Interface {
         // if sender's balance has enough unit and amount >= 0,
         //      and the sum is not overflow,
         // then do transfer
-        require(_amount > 0);
-        balances[msg.sender] = balances[msg.sender].Sub(_amount);
-        balances[_to] = balances[_to].Add(_amount);
-        Transfer(msg.sender, _to, _amount);
-        return true;
+        if ( (balances[msg.sender] >= _amount) &&
+             (_amount >= 0) &&
+             (balances[_to] + _amount > balances[_to]) ) {
+
+            balances[msg.sender] -= _amount;
+            balances[_to] += _amount;
+            Transfer(msg.sender, _to, _amount);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     // Send _value amount of tokens from address _from to address _to
     // The transferFrom method is used for a withdraw workflow, allowing contracts to send
     // tokens on your behalf, for example to "deposit" to a contract address and/or to charge
-    // fees in Sub-currencies; the command should fail unless the _from account has
+    // fees in sub-currencies; the command should fail unless the _from account has
     // deliberately authorized the sender of the message via some mechanism; we propose
     // these standardized APIs for approval:
     function transferFrom(
@@ -138,10 +141,10 @@ contract RentToken is ERC20Interface {
     public
 
     returns (bool success) {
-        require(_amount > 0);
-        if (balances[_from] >= _amount) {
-            balances[_from] = balances[_from].Sub(_amount);
-            balances[_to] = balances[_to].Add(_amount);
+        if (balances[_from] >= _amount && _amount > 0 && allowed[_from][msg.sender] >= _amount) {
+            balances[_from] -= _amount;
+            allowed[_from][msg.sender] -= _amount;
+            balances[_to] += _amount;
             Transfer(_from, _to, _amount);
             return true;
         } else {
@@ -169,19 +172,6 @@ contract RentToken is ERC20Interface {
         return allowed[_owner][_spender];
     }
 
-    function increaseAmount() internal onlyOwner  {
-        uint256  nowTime = block.timestamp;
-        uint256 nextTime = releaseTokenTime.Add(_increaseInterval);
-        require(nextTime > nowTime);
-        _totalSupply = _totalSupply.Add(_maxIncreaseAmount);
-        uint256   timeInterval = 1 years;
-        _increaseInterval = _increaseInterval.Add(timeInterval);
-    } 
-
-    function decreaseAmount(uint amount) internal onlyOwner {
-        _totalSupply = _totalSupply.Sub(amount);
-    }
-
     function () public payable{
         revert();
     }
@@ -194,7 +184,7 @@ contract RentToken is ERC20Interface {
  */
 library SafeMath {
 
-  function Mul(uint256 a, uint256 b) internal pure returns (uint256) {
+  function mul(uint256 a, uint256 b) internal pure returns (uint256) {
     if (a == 0) {
       return 0;
     }
@@ -203,24 +193,84 @@ library SafeMath {
     return c;
   }
 
-  function Div(uint256 a, uint256 b) internal pure returns (uint256) {
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
     // assert(b > 0); // Solidity automatically throws when dividing by 0
     uint256 c = a / b;
     // assert(a == b * c + a % b); // There is no case in which this doesn't hold
     return c;
   }
 
-  function Sub(uint256 a, uint256 b) internal pure returns (uint256) {
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
     assert(b <= a);
     return a - b;
   }
 
-  function Add(uint256 a, uint256 b) internal pure returns (uint256) {
+  function add(uint256 a, uint256 b) internal pure returns (uint256) {
     uint256 c = a + b;
     assert(c >= a);
     return c;
   }
 }
 
+/**
+ * The Ownable contract has an owner address, and provides basic authorization control
+ * functions, this simplifies the implementation of "user permissions".
+ */
+contract Ownable {
+  address public owner;
 
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
+  function Ownable() public {
+    owner = msg.sender;
+  }
+
+  /**
+   * Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
+
+  /**
+   * Allows the current owner to transfer control of the contract to a newOwner.
+   * @param newOwner The address to transfer ownership to.
+   */
+  function transferOwnership(address newOwner) public onlyOwner {
+    require(newOwner != address(0));
+    OwnershipTransferred(owner, newOwner);
+    owner = newOwner;
+  }
+
+}
+
+contract BivTokenVault is Ownable {
+    using SafeMath for uint256;
+
+    BIV public token;
+
+    function BivTokenVault(ERC20Interface _token) public {
+        owner = msg.sender;
+        token = BIV(_token);
+    }
+
+    // Claim tokens for life reserve wallet
+    function claimTokenReserveLife() public {
+
+        address reserveWallet = msg.sender;
+
+        // Can't claim before Lock ends
+        // require(block.timestamp > timeLocks[reserveWallet]);
+
+        // The vesting stage of life wallet
+        uint256 vestingStage = 1;
+
+        // Amount of tokens the life wallet should have at this vesting stage
+        uint256 totalUnlocked = vestingStage.mul(2 * (10 ** 8) * (10 ** 8));
+
+        // Transfer to life wallet address
+        require(token.transfer(reserveWallet, totalUnlocked));
+    }
+
+}

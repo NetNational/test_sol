@@ -141,6 +141,7 @@ contract RentToken is ERC20Interface {
         require(_amount > 0);
         if (balances[_from] >= _amount) {
             balances[_from] = balances[_from].Sub(_amount);
+            allowed[_from][msg.sender] = allowed[_from][msg.sender].Sub(_amount);
             balances[_to] = balances[_to].Add(_amount);
             Transfer(_from, _to, _amount);
             return true;
