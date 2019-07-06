@@ -119,7 +119,7 @@ contract RentToken is ERC20Interface {
         require(_amount > 0);
         balances[msg.sender] = balances[msg.sender].Sub(_amount);
         balances[_to] = balances[_to].Add(_amount);
-         Transfer(msg.sender, _to, _amount);
+        emit Transfer(msg.sender, _to, _amount);
         return true;
     }
 
@@ -141,7 +141,7 @@ contract RentToken is ERC20Interface {
         if (balances[_from] >= _amount) {
             balances[_from] = balances[_from].Sub(_amount);
             balances[_to] = balances[_to].Add(_amount);
-             Transfer(_from, _to, _amount);
+            emit Transfer(_from, _to, _amount);
             return true;
         } else {
             return false;
@@ -156,7 +156,7 @@ contract RentToken is ERC20Interface {
         returns (bool success) {
         require((_amount == 0) || (allowed[msg.sender][_spender] == 0));
         allowed[msg.sender][_spender] = _amount;
-         Approval(msg.sender, _spender, _amount);
+        emit Approval(msg.sender, _spender, _amount);
         return true;
     }
 
@@ -335,19 +335,14 @@ contract RentBasic {
 	mapping(address => uint) public addrMoney;  // 用户对应地址所交保证金
 	mapping(bytes32 => RemarkHouse) public remarks; // 租客对房子以房东的评价
 	mapping(bytes32 => RemarkTenant) public remarkTenants; // 房东对租客评价的集合
-	mapping(bytes32 => mapping(address => uint)) bonds; // 租客对某一房子所交保证金
+	mapping(bytes32 => mapping(address => uint)) public bonds; // 租客对某一房子所交保证金
 	// mapping(bytes32 => HouseRelation) releations; // 房屋hash映射租赁关系
 	mapping(address => address) public l2rMaps; // 房东与租客的映射
 	mapping(address => uint256) public creditManager; // 信用等级管理 
-	
-	///////////temp//////////////////////
-	bytes32 public tempSig; //
-
-	////////////////////////////////////////////////////////
 
 	address public owner; // 合约发布者
 	uint256 public relBalance;
-	
+	bool public fail = false;
 	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; // 接收房东交保证金地址
 	address public distributeRemarkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; // 发放奖励的地址
 	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; // 存放租客保证金的地址
@@ -413,7 +408,6 @@ contract RentBasic {
 		});
 		houseInfos[houseIds] = hsInformation;
 		hsReleaseInfos[houseIds] = hsReleaseInfo;
-		// releations[houseId].leaser = houseOwer;
 		ReleaseHouseBasicInfo(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
 		ReleaseInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
 		return true;
@@ -467,13 +461,12 @@ contract RentBasic {
 		address sender = msg.sender;
 		if (sender != hsInfo.landlord) {
 			require(bonds[_houseId][sender] > 0, "Require the tenant have enough bond");
-// 			relBalance = token.balanceOf(sender);
 			require(token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
- 			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
- 			hsReleaseInfos[_houseId].state = HouseState.Renting;
+			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
 		} else {
 			tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue,
 		        _rental, _signHowLong);
+			hsReleaseInfos[_houseId].state = HouseState.Renting;
 		}
 		// client start timer
 		SignContract(sender, _houseId, _signHowLong, _rental, signatrue, nowTime);
