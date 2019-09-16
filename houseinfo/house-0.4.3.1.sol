@@ -342,7 +342,7 @@ contract RentBasic {
 	
 	///////////temp//////////////////////
 	bytes32 public tempSig; //
-
+	
 	////////////////////////////////////////////////////////
 
 	address public owner; // 合约发布者
@@ -445,6 +445,7 @@ contract RentBasic {
 		require(token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
 		bonds[_houseId][msg.sender] = _realRent;
+		// releations[_houseId].tenant = msg.sender;
 		l2rMaps[hsInfo.landlord] = sender;
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 	}
@@ -466,6 +467,7 @@ contract RentBasic {
 		address sender = msg.sender;
 		if (sender != hsInfo.landlord) {
 			require(bonds[_houseId][sender] > 0, "Require the tenant have enough bond");
+// 			relBalance = token.balanceOf(sender);
 			require(token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
  			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
  			hsReleaseInfos[_houseId].state = HouseState.Renting;

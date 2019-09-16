@@ -28,8 +28,21 @@
 
 1、签订合同流程调整：房东发布房源后，租客请求租赁；房东调用签订协议方法租房协议，租客签订租房协议，租赁进入renting状态。
 
-
-
 House-0.4.4
 
 1、增加惩罚机制
+
+2、分模块设计
+
+3、修复bug，字节溢出
+
+address anthor = l2rMaps[sender];
+bonds[_houseId][anthor] = bonds[_houseId][anthor] - amount;
+
+
+
+## House-0.4.5说明
+
+1、优化变量，减少public变量
+
+2、增加自动发放奖励

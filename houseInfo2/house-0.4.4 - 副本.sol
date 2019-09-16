@@ -1,282 +1,6 @@
 pragma solidity ^0.4.24;
-
-contract ERC20Interface {
-    function totalSupply() public view returns (uint256 _totalSupply);
-    function balanceOf(address _owner) public view returns (uint256 balance);
-    function transfer(address _to, uint256 _value) public returns (bool success);
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool success);
-    function approve(address _spender, uint256 _value) public returns (bool success);
-    function allowance(address _owner, address _spender) public view returns (uint256 remaining);
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
-}
-
-contract RentToken is ERC20Interface {
-    using SafeMath for uint256;
-    uint256 public constant decimals = 8;
-
-    string public constant symbol = "RentToken";
-    string public constant name = "BLT";
-
-    uint256 public _totalSupply = 40 * (10 ** 8) * (10 ** 8); // total supply is 4 billion
-    uint256 public _maxIncreaseAmount = 2 * (10 ** 8) * (10 ** 8); //  every time max increase 20 millions
-    uint256 public _increaseInterval = 1  years;  // 6 month interval can increase
-
-    // Owner of this contract
-    address public owner;
-
-    // Balances AAC for each account
-    mapping(address => uint256) public  balances;
-
-    // Owner of account approves the transfer of an amount to another account
-    mapping(address => mapping (address => uint256)) public  allowed;
-
-    // List of approved investors
-    mapping(address => bool) public approvedInvestorList;
-
-    // deposit
-    mapping(address => uint256) public deposit;
-
-
-    // totalTokenSold
-    uint256 public totalTokenSold = 0;
-    uint256 public releaseTokenTime = block.timestamp;
-
-    /**
-     * @dev Fix for the ERC20 short address attack.
-     */
-    modifier onlyPayloadSize(uint size) {
-      if(msg.data.length < size + 4) {
-        revert();
-      }
-      _;
-    }
-    /**
-    *  @dev Only owner can modifer 
-    */
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
-
-    /// @dev Constructor
-    constructor()
-        public {
-        owner = msg.sender;
-        balances[owner] = _totalSupply;
-    }
-
-    /// @dev Gets totalSupply
-    /// @return Total supply
-    function totalSupply()
-        public
-        view
-        returns (uint256) {
-        return _totalSupply;
-    }
-
-    /// @dev Gets account's balance
-    /// @param _addr Address of the account
-    /// @return Account balance
-    function balanceOf(address _addr)
-        public
-        view
-        returns (uint256) {
-        return balances[_addr];
-    }
-
-    /// @dev check address is approved investor
-    /// @param _addr address
-    function isApprovedInvestor(address _addr)
-        public
-        view
-        returns (bool) {
-        return approvedInvestorList[_addr];
-    }
-
-    /// @dev get ETH deposit
-    /// @param _addr address get deposit
-    /// @return amount deposit of an buyer
-    function getDeposit(address _addr)
-        public
-        view
-        returns(uint256){
-        return deposit[_addr];
-    }
-
-
-    /// @dev Transfers the balance from msg.sender to an account
-    /// @param _to Recipient address
-    /// @param _amount Transfered amount in unit
-    /// @return Transfer status
-    function transfer(address _to, uint256 _amount)
-        public
-
-        returns (bool) {
-        // if sender's balance has enough unit and amount >= 0,
-        //      and the sum is not overflow,
-        // then do transfer
-        require(_amount > 0);
-        balances[msg.sender] = balances[msg.sender].Sub(_amount);
-        balances[_to] = balances[_to].Add(_amount);
-         Transfer(msg.sender, _to, _amount);
-        return true;
-    }
-
-    // Send _value amount of tokens from address _from to address _to
-    // The transferFrom method is used for a withdraw workflow, allowing contracts to send
-    // tokens on your behalf, for example to "deposit" to a contract address and/or to charge
-    // fees in Sub-currencies; the command should fail unless the _from account has
-    // deliberately authorized the sender of the message via some mechanism; we propose
-    // these standardized APIs for approval:
-    function transferFrom(
-        address _from,
-        address _to,
-        uint256 _amount
-    )
-    public
-
-    returns (bool success) {
-        require(_amount > 0);
-        if (balances[_from] >= _amount) {
-            balances[_from] = balances[_from].Sub(_amount);
-            balances[_to] = balances[_to].Add(_amount);
-             Transfer(_from, _to, _amount);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    // Allow _spender to withdraw from your account, multiple times, up to the _value amount.
-    // If this function is called again it overwrites the current allowance with _value.
-    function approve(address _spender, uint256 _amount)
-        public
-
-        returns (bool success) {
-        require((_amount == 0) || (allowed[msg.sender][_spender] == 0));
-        allowed[msg.sender][_spender] = _amount;
-         Approval(msg.sender, _spender, _amount);
-        return true;
-    }
-
-    // get allowance
-    function allowance(address _owner, address _spender)
-        public
-        view
-        returns (uint256 remaining) {
-        return allowed[_owner][_spender];
-    }
-
-    function increaseAmount() internal onlyOwner  {
-        uint256  nowTime = block.timestamp;
-        uint256 nextTime = releaseTokenTime.Add(_increaseInterval);
-        require(nextTime > nowTime);
-        _totalSupply = _totalSupply.Add(_maxIncreaseAmount);
-        uint256   timeInterval = 365 days;
-        _increaseInterval = _increaseInterval.Add(timeInterval);
-    } 
-
-    function decreaseAmount(uint amount) internal onlyOwner {
-        _totalSupply = _totalSupply.Sub(amount);
-    }
-
-}
-
-/**
- * SafeMath
- * Math operations with safety checks that throw on error
- */
-library SafeMath {
-
-  function Mul(uint256 a, uint256 b) internal pure returns (uint256) {
-    if (a == 0) {
-      return 0;
-    }
-    uint256 c = a * b;
-    assert(c / a == b);
-    return c;
-  }
-
-  function Div(uint256 a, uint256 b) internal pure returns (uint256) {
-    // assert(b > 0); // Solidity automatically throws when dividing by 0
-    uint256 c = a / b;
-    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-    return c;
-  }
-
-  function Sub(uint256 a, uint256 b) internal pure returns (uint256) {
-    assert(b <= a);
-    return a - b;
-  }
-
-  function Add(uint256 a, uint256 b) internal pure returns (uint256) {
-    uint256 c = a + b;
-    assert(c >= a);
-    return c;
-  }
-}
-
-contract TenancyAgreement {
-	struct Agreement {
-		string  leaser; // 出租方
-		string  tenant; // 承租方
-		string  houseAddress; // 房屋地址
-		string describe; // 房屋描述  
-		bytes32 leaserSign; // 甲方签名 
-		bytes32 tenantSign; // 乙方签名
-		uint256  leaseTerm; //租赁期限
-		uint256 rent; // 每月租金
-		uint256 yearRent; // 年租金
-		uint256 startTime; // 租赁开始
-		uint256 endTime; // 结束租赁时间
-		bool    isSign; // 是否已签约
-	}
-	mapping(bytes32 => Agreement) agrees;
-	/**
-	 * dev rent house agreement, landlord call this agreement.
-	 * Parm {_leaser: who rents out the house, _tenant: who rent the house, _houseId: the hash of the house,
-	 * _houseAddress: the house position, _describe: the house describe, _rental: monthly rent, _signHowLong: lease term}
-	 */
-	constructor(string _leaser, bytes32 _houseId, string _houseAddress, string _describe, bytes32 _signInfo, uint256 _rental, uint _signHowLong){	
-		agrees[_houseId].leaser = _leaser;
-		agrees[_houseId].houseAddress = _houseAddress;
-		agrees[_houseId].describe = _describe;
-		agrees[_houseId].leaserSign = _signInfo;
-		agrees[_houseId].leaseTerm = _signHowLong;
-		agrees[_houseId].rent = _rental;	
-	}
-	/* title: tenantSign
-	*  dev: tenant call this method to sign the rent house agreement 
-	*  Param: 
-	*/
-	function tenantSign(bytes32 _houseId, string _tenant, uint256 _rental, uint _signHowLong, 
-			bytes32 _signInfo) public returns(bool) {
-		uint256 startTime = now;
-		uint256 end  = startTime + (_signHowLong * 30) * 1 days;
-		agrees[_houseId].tenant = _tenant;
-		agrees[_houseId].yearRent = 12 * _rental;
-		agrees[_houseId].startTime = startTime;
-		agrees[_houseId].endTime = end;
-		agrees[_houseId].isSign  = true;
-	}
-	/* title: getAgreement
-	*  dev: According to the house hash, query the agreement. 
-	*  Param: 
-	*/
-	function getAgreement(bytes32 _houseId) public returns(string, string, string, string, bytes32, bytes32) {
-		Agreement ag = agrees[_houseId];
-		return (ag.leaser, ag.tenant, ag.houseAddress, ag.describe, ag.leaserSign, ag.tenantSign);
-	}
-	/* title: getRentTenancyInfo
-	*  dev: Get Rent tenancy time inforamation 
-	*  Param: 
-	*/
-	function getRentTenancyInfo(bytes32 _houseId) public returns(uint256, uint256, uint256, uint256) {
-		Agreement ag = agrees[_houseId];
-		return (ag.rent, ag.yearRent, ag.startTime, ag.endTime);
-	}
-}
+import './token.sol';
+import './agreement.sol';
 
 contract RentBasic {
 	enum HouseState {
@@ -326,7 +50,7 @@ contract RentBasic {
 		uint256 operateTime; // 评论时间
 	}
 
-	RentToken public token;
+	RentToken token;
 	TenancyAgreement tenancyContract;
 	HouseInfo public hsInformation;
 	HouseReleaseInfo public hsReleaseInfo;
@@ -336,24 +60,22 @@ contract RentBasic {
 	mapping(bytes32 => RemarkHouse) public remarks; // 租客对房子以房东的评价
 	mapping(bytes32 => RemarkTenant) public remarkTenants; // 房东对租客评价的集合
 	mapping(bytes32 => mapping(address => uint)) bonds; // 租客对某一房子所交保证金
-	// mapping(bytes32 => HouseRelation) releations; // 房屋hash映射租赁关系
-	mapping(address => address) public l2rMaps; // 房东与租客的映射
+	mapping(address => address) l2rMaps; // 房东与租客的映射
 	mapping(address => uint256) public creditManager; // 信用等级管理 
+	mapping(address => uint256) lockAmount; // 毁约时冻结某个账户的金额
 	
-	///////////temp//////////////////////
-	bytes32 public tempSig; //
-
-	////////////////////////////////////////////////////////
 
 	address public owner; // 合约发布者
-	uint256 public relBalance;
 	
 	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; // 接收房东交保证金地址
 	address public distributeRemarkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; // 发放奖励的地址
 	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; // 存放租客保证金的地址
+	address public punishAddr = 0x960bEDf8DF0A6e66B470ba560eE6fD1e0e32Ee23; // 保存惩罚锁定奖励地址
 
 	uint256 public promiseAmount = 500 * (10 ** 8); // 保证金
-	uint256 public punishAmount = 10 * (10 ** 8); // 惩罚扣除
+	uint256 public punishLevel1Amount = 10 * (10 ** 8); // 惩罚扣除
+	uint256 public punishLevel2Amount = 100 * (10 ** 8); // 惩罚扣除
+	uint256 public punishLevel3Amount = 500 * (10 ** 8); // 惩罚扣除
 	uint256 public remarkAmount = 4 * (10 ** 8); // 奖励数量
 
 	event ReleaseInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
@@ -361,6 +83,8 @@ contract RentBasic {
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, string _ramark);
 	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr);
+	event BreakContract(bytes32 _houseId, address indexed sender,string _reason,uint8 _punishLevel,uint256 uptime);
+	event WithdrawDeposit(bytes32 _houseId,address indexed sender,uint256 amount,uint256 nowTime);
 	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
 	
 	constructor(ERC20Interface _token) {
@@ -445,6 +169,7 @@ contract RentBasic {
 		require(token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
 		bonds[_houseId][msg.sender] = _realRent;
+		// releations[_houseId].tenant = msg.sender;
 		l2rMaps[hsInfo.landlord] = sender;
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 	}
@@ -478,24 +203,30 @@ contract RentBasic {
 		hsReleaseInfos[_houseId].updateTime = nowTime;
 	}
 	/**
-	 * title signContract
-	 * dev  _renter and _leaser sign how long agreement. It may be also including approve, send key
-	 * Parm {_leaser: the address of the leaser, _renter：the address of the renter , signHowLong: how long of the agreement}
+	 * title withdrawPromise
+	 * dev  Withdraw the deposit to tenant and leaser
+	 * Parm {_houseId: the id of hourse, amount: }
 	 */
 	 function withdrawPromise(bytes32 _houseId, uint amount) {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(reInfo.existed, "Not find the house");
-	 	require(msg.sender == hs.landlord, "It can be called only by landlord");
 	 	require(reInfo.state == HouseState.EndRent || reInfo.state != HouseState.Cance, "House rent is not finished");
-	 	require(addrMoney[msg.sender] > amount && amount > 0 , "Amount is not ");
-	 	require(token.transferFrom(receiverPromiseMoney, msg.sender, amount), "withdraw error");
-	 	addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
-	 	// Return the bond to the tenant
-	 	require(token.transferFrom(saveTenanantAddr, l2rMaps[msg.sender], bonds[_houseId][l2rMaps[msg.sender]]), "Transfer fail");
-	 	bonds[_houseId][l2rMaps[msg.sender]] = 0;  // clear the tenant bond
+	 	require(amount > 0 , "Amount is error ");
+	 	address sender = msg.sender;
+	 	if (sender == hs.landlord) {
+	 		require(addrMoney[msg.sender] > amount);
+	 		require(token.transferFrom(receiverPromiseMoney, sender, amount), "withdraw error");
+	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
+	 	} else {
+	 		// Return the bond to the tenant
+	 		require(bonds[_houseId][sender] >= amount, "Deposit amount is less than withdraw amount");
+		 	require(token.transferFrom(saveTenanantAddr, sender, amount), "Transfer fail");
+		 	bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
+	 	}
 	 	uint256 nowTime = now;
 	 	hsReleaseInfos[_houseId].updateTime = nowTime;
+	 	WithdrawDeposit(_houseId, sender, amount, nowTime);
 	 }
 	/**
 	 * title getHouseInfo
@@ -522,19 +253,52 @@ contract RentBasic {
 	/**
 	 * title breakContract
 	 * dev  who break the contract and how to record it. And it will run by the contract or anyone call it
-	 * Parm 
+	 * Parm {_reason: why break the contract, _punishLevel: punish level, 0: not punish, 1: }
 	 * TODO punishAmount
 	 */
-	function breakContract(bytes32 _houseId, string _reason) public returns (uint256 money) {
-		HouseInfo hs = houseInfos[_houseId];
+	function breakContract(bytes32 _houseId, string _reason, uint8 _punishLevel) public {
+		HouseInfo hus = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
-		require(relInfo.existed, "Require the house is existed");		
-		if (hs.landlord == msg.sender && relInfo.state != HouseState.ReleaseRent) {
-			addrMoney[msg.sender] = addrMoney[msg.sender] - punishAmount;
+		require(relInfo.existed, "Require the house is existed");
+		// If the house is in WaitRent, anyone can break the house normal
+		if 	(relInfo.state == HouseState.WaitRent)	{
+			hsReleaseInfos[_houseId].state = HouseState.Cance;
+		}
+		address sender = msg.sender;
+		// If the house is in Renting, they punish one side
+		if (relInfo.state != HouseState.ReleaseRent) {
+			// According the reason and punish level judge, lock the amount
+			// TODO this should be vote by owner
+			uint256 amount = getPunishAmount(_punishLevel);
+			if (sender == hus.landlord) {
+				require(token.transferFrom(receiverPromiseMoney, punishAddr, amount), "Transfer fail");
+				bonds[_houseId][l2rMaps[sender]] = bonds[_houseId][l2rMaps[sender]] - amount;
+			} else {
+				require(token.transferFrom(saveTenanantAddr, punishAddr, amount), "Transfer fail");
+			    addrMoney[hus.landlord] = addrMoney[l2rMaps[sender]] - amount;
+			}			
+			lockAmount[l2rMaps[sender]] = lockAmount[l2rMaps[sender]] + amount;
+			hsReleaseInfos[_houseId].state = HouseState.Cance;
 		}
 		// Update releaseHouse information
-		hsReleaseInfos[_houseId].state = HouseState.Cance;
+		
 		hsReleaseInfos[_houseId].updateTime = now;	
+		BreakContract(_houseId, sender, _reason, _punishLevel, now);
+	}
+	/**
+	 * title getPunishAmount
+	 * dev Get punished amount by punishLevel
+	 */
+    function getPunishAmount(uint8 _punishLevel) returns(uint256) {
+		if (_punishLevel == 0) {
+			return 0;
+		} else if (_punishLevel == 1) {
+			return punishLevel1Amount;
+		} else if (_punishLevel == 2) {
+			return punishLevel2Amount;
+		} else {
+			return punishLevel3Amount;
+		}
 	}
 	/**
 	 * title commentHouse

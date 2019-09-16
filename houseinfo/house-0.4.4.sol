@@ -339,10 +339,11 @@ contract RentBasic {
 	// mapping(bytes32 => HouseRelation) releations; // 房屋hash映射租赁关系
 	mapping(address => address) public l2rMaps; // 房东与租客的映射
 	mapping(address => uint256) public creditManager; // 信用等级管理 
+	mapping(address => uint256) public lockAmount; // 毁约时冻结某个账户的金额
 	
 	///////////temp//////////////////////
 	bytes32 public tempSig; //
-
+	
 	////////////////////////////////////////////////////////
 
 	address public owner; // 合约发布者
@@ -351,9 +352,12 @@ contract RentBasic {
 	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; // 接收房东交保证金地址
 	address public distributeRemarkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; // 发放奖励的地址
 	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; // 存放租客保证金的地址
+	address public punishAddr = 0x960bEDf8DF0A6e66B470ba560eE6fD1e0e32Ee23; // 保存惩罚锁定奖励地址
 
 	uint256 public promiseAmount = 500 * (10 ** 8); // 保证金
-	uint256 public punishAmount = 10 * (10 ** 8); // 惩罚扣除
+	uint256 public punishLevel1Amount = 10 * (10 ** 8); // 惩罚扣除
+	uint256 public punishLevel2Amount = 100 * (10 ** 8); // 惩罚扣除
+	uint256 public punishLevel3Amount = 500 * (10 ** 8); // 惩罚扣除
 	uint256 public remarkAmount = 4 * (10 ** 8); // 奖励数量
 
 	event ReleaseInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
@@ -361,6 +365,8 @@ contract RentBasic {
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, string _ramark);
 	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr);
+	event BreakContract(bytes32 _houseId, address indexed sender,string _reason,uint8 _punishLevel,uint256 uptime);
+	event WithdrawDeposit(bytes32 _houseId,address indexed sender,uint256 amount,uint256 nowTime);
 	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
 	
 	constructor(ERC20Interface _token) {
@@ -445,6 +451,7 @@ contract RentBasic {
 		require(token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
 		bonds[_houseId][msg.sender] = _realRent;
+		// releations[_houseId].tenant = msg.sender;
 		l2rMaps[hsInfo.landlord] = sender;
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 	}
@@ -466,6 +473,7 @@ contract RentBasic {
 		address sender = msg.sender;
 		if (sender != hsInfo.landlord) {
 			require(bonds[_houseId][sender] > 0, "Require the tenant have enough bond");
+// 			relBalance = token.balanceOf(sender);
 			require(token.transferFrom(sender, hsInfo.landlord, _rental), "Tenat's BLT not enough !");
  			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
  			hsReleaseInfos[_houseId].state = HouseState.Renting;
@@ -478,24 +486,30 @@ contract RentBasic {
 		hsReleaseInfos[_houseId].updateTime = nowTime;
 	}
 	/**
-	 * title signContract
-	 * dev  _renter and _leaser sign how long agreement. It may be also including approve, send key
-	 * Parm {_leaser: the address of the leaser, _renter：the address of the renter , signHowLong: how long of the agreement}
+	 * title withdrawPromise
+	 * dev  Withdraw the deposit to tenant and leaser
+	 * Parm {_houseId: the id of hourse, amount: }
 	 */
 	 function withdrawPromise(bytes32 _houseId, uint amount) {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(reInfo.existed, "Not find the house");
-	 	require(msg.sender == hs.landlord, "It can be called only by landlord");
 	 	require(reInfo.state == HouseState.EndRent || reInfo.state != HouseState.Cance, "House rent is not finished");
-	 	require(addrMoney[msg.sender] > amount && amount > 0 , "Amount is not ");
-	 	require(token.transferFrom(receiverPromiseMoney, msg.sender, amount), "withdraw error");
-	 	addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
-	 	// Return the bond to the tenant
-	 	require(token.transferFrom(saveTenanantAddr, l2rMaps[msg.sender], bonds[_houseId][l2rMaps[msg.sender]]), "Transfer fail");
-	 	bonds[_houseId][l2rMaps[msg.sender]] = 0;  // clear the tenant bond
+	 	require(amount > 0 , "Amount is error ");
+	 	address sender = msg.sender;
+	 	if (sender == hs.landlord) {
+	 		require(addrMoney[msg.sender] > amount);
+	 		require(token.transferFrom(receiverPromiseMoney, sender, amount), "withdraw error");
+	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
+	 	} else {
+	 		// Return the bond to the tenant
+	 		require(bonds[_houseId][sender] >= amount, "Deposit amount is less than withdraw amount");
+		 	require(token.transferFrom(saveTenanantAddr, sender, amount), "Transfer fail");
+		 	bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
+	 	}
 	 	uint256 nowTime = now;
 	 	hsReleaseInfos[_houseId].updateTime = nowTime;
+	 	WithdrawDeposit(_houseId, sender, amount, nowTime);
 	 }
 	/**
 	 * title getHouseInfo
@@ -522,19 +536,52 @@ contract RentBasic {
 	/**
 	 * title breakContract
 	 * dev  who break the contract and how to record it. And it will run by the contract or anyone call it
-	 * Parm 
+	 * Parm {_reason: why break the contract, _punishLevel: punish level, 0: not punish, 1: }
 	 * TODO punishAmount
 	 */
-	function breakContract(bytes32 _houseId, string _reason) public returns (uint256 money) {
+	function breakContract(bytes32 _houseId, string _reason, uint8 _punishLevel) public {
 		HouseInfo hs = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
-		require(relInfo.existed, "Require the house is existed");		
-		if (hs.landlord == msg.sender && relInfo.state != HouseState.ReleaseRent) {
-			addrMoney[msg.sender] = addrMoney[msg.sender] - punishAmount;
+		require(relInfo.existed, "Require the house is existed");
+		// If the house is in WaitRent, anyone can break the house normal
+		if 	(relInfo.state == HouseState.WaitRent)	{
+			hsReleaseInfos[_houseId].state = HouseState.Cance;
+		}
+		address sender = msg.sender;
+		// If the house is in Renting, they punish one side
+		if (relInfo.state != HouseState.ReleaseRent) {
+			// According the reason and punish level judge, lock the amount
+			// TODO this should be vote by owner
+			uint256 amount = getPunishAmount(_punishLevel);
+			if (sender == hs.landlord) {
+				require(token.transferFrom(receiverPromiseMoney, punishAddr, amount), "Transfer fail");
+				bonds[_houseId][l2rMaps[sender]] = bonds[_houseId][l2rMaps[sender]] - amount;
+			} else {
+				require(token.transferFrom(receiverPromiseMoney, punishAddr, amount), "Transfer fail");
+			    addrMoney[hs.landlord] = addrMoney[l2rMaps[sender]] - amount;
+			}			
+			lockAmount[l2rMaps[sender]] = lockAmount[l2rMaps[sender]] + amount;
+			hsReleaseInfos[_houseId].state = HouseState.Cance;
 		}
 		// Update releaseHouse information
-		hsReleaseInfos[_houseId].state = HouseState.Cance;
+		
 		hsReleaseInfos[_houseId].updateTime = now;	
+		BreakContract(_houseId, sender, _reason, _punishLevel, now);
+	}
+	/**
+	 * title getPunishAmount
+	 * dev Get punished amount by punishLevel
+	 */
+    function getPunishAmount(uint8 _punishLevel) returns(uint256) {
+		if (_punishLevel == 0) {
+			return 0;
+		} else if (_punishLevel == 1) {
+			return punishLevel1Amount;
+		} else if (_punishLevel == 2) {
+			return punishLevel2Amount;
+		} else {
+			return punishLevel3Amount;
+		}
 	}
 	/**
 	 * title commentHouse
