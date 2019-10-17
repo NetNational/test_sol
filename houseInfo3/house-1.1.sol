@@ -10,11 +10,6 @@ interface RegisterInterface {
 	function isLogin(address _userAddr) external returns(bool);
 	function isRegister() public pure returns(bool isIndeed);
 }
-interface AgreementInterface {
-	function newAgreement(string _leaser, bytes32 _houseId, string _houseAddress, string _describe, bytes32 _signInfo, uint256 _rental, uint _signHowLong) returns(bool);
-	function tenantSign(bytes32 _houseId, string _tenant, uint256 _rental, uint _signHowLong, bytes32 _signInfo) public returns(bool);
-	function isAgree() public pure returns(bool isIndeed);
-}
 contract RentBasic {
 	enum HouseState {
 		ReleaseRent,  
@@ -192,7 +187,7 @@ contract RentBasic {
  			hsReleaseInfos[_houseId].state = HouseState.Renting;
 		} else {
 			// tenancyContract.newAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue,_rental, _signHowLong);
-			tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue, _rental, _signHowLong);
+			tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue,_rental, _signHowLong);
 		}
 		// client start timer
 		SignContract(sender, _houseId, _signHowLong, _rental, signatrue, nowTime);
@@ -202,19 +197,17 @@ contract RentBasic {
 	 function withdraw(bytes32 _houseId, uint amount) onlyLogin public returns(bool) {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
-	 	require(reInfo.existed, "Not find the house");
-	 	require(reInfo.state == HouseState.EndRent || reInfo.state == HouseState.Cance, "House rent is not finished");
-	 	require(amount > 0 , "Amount is error ");
+	 	require(reInfo.existed, "Not find the house!");
+	 	require(reInfo.state == HouseState.EndRent || reInfo.state == HouseState.Cance, "House rent is not finished, if you want break the rent, please break contract first!");
+	 	require(amount > 0 , "Amount is error !");
 	 	address sender = msg.sender;
 	 	if (sender == hs.landlord) {
 	 		require(addrMoney[msg.sender] > amount);
-	 		// token.transferFrom(receiverPromiseMoney, sender, amount);
 	 		require(token.transferFrom(receiverPromiseMoney, sender, amount), "withdraw error");
 	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
 	 	} else {
 	 		// Return the bond to the tenant
 	 		require(bonds[_houseId][sender] >= amount);
-		 	// token.transferFrom(saveTenanantAddr, sender, amount);
 		 	require(token.transferFrom(saveTenanantAddr, sender, amount), "Transfer fail");
 		 	bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
 	 	}
@@ -232,13 +225,17 @@ contract RentBasic {
 	}
 	function getHouseReleaseInfo(bytes32 _houseId) public returns(HouseState, uint32, uint256, uint, uint, bool) {
 		HouseReleaseInfo releaseInfo = hsReleaseInfos[_houseId];
-		require(releaseInfo.existed, "Require the house is existed");
+		require(releaseInfo.existed, "Require the house is existed !");
 		return (releaseInfo.state, releaseInfo.tenancy, releaseInfo.rent, releaseInfo.releaseTime, releaseInfo.dealineTime, releaseInfo.existed);		
-	}		
+	}	
+	/*
+	  @dev breakContract
+	  @des this method call should be checked by admin, then it call be called.
+	*/	
 	function breakContract(bytes32 _houseId, string _reason, uint8 _punishLevel) public onlyLogin returns(bool) {
 		HouseInfo hus = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
-		require(relInfo.existed, "House is not existed");
+		require(relInfo.existed, "House is not existed !");
 		// If the house is in WaitRent, anyone can break the house normal
 		if 	(relInfo.state == HouseState.WaitRent)	{
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
@@ -272,8 +269,8 @@ contract RentBasic {
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) onlyLogin public returns(bool) {
 		address sender = msg.sender;
 		HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
-		require(reInfo.existed, "Not find house");
-	 	require(reInfo.state == HouseState.EndRent, "Rent is not finished");
+		require(reInfo.existed, "Not find house!");
+	 	require(reInfo.state == HouseState.EndRent, "Rent is not finished!");
 		if (houseInfos[_houseId].landlord == sender) {
 			remarks[_houseId] = RemarkHouse(sender, _ratingIndex, _ramark, now);
 			creditManager[l2rMaps[sender]] += _ratingIndex; 

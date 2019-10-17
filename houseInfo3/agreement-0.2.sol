@@ -16,23 +16,18 @@ contract TenancyAgreement {
 		// address originator; // 发起方地址
 	}
 	mapping(bytes32 => Agreement) agrees;
-	/**
-	 * dev rent house agreement, landlord call this agreement.
-	 * Parm {_leaser: who rents out the house, _tenant: who rent the house, _houseId: the hash of the house,
-	 * _houseAddress: the house position, _describe: the house describe, _rental: monthly rent, _signHowLong: lease term}
-	 */
-	constructor(string _leaser, bytes32 _houseId, string _houseAddress, string _describe, bytes32 _signInfo, uint256 _rental, uint _signHowLong){	
+	function newAgreement(string _leaser, bytes32 _houseId, string _houseAddress, string _describe, bytes32 _signInfo, uint256 _rental, uint _signHowLong) public returns(bool) {
+		uint256 startTime = now;
 		agrees[_houseId].leaser = _leaser;
 		agrees[_houseId].houseAddress = _houseAddress;
 		agrees[_houseId].describe = _describe;
 		agrees[_houseId].leaserSign = _signInfo;
 		agrees[_houseId].leaseTerm = _signHowLong;
-		agrees[_houseId].rent = _rental;	
+		agrees[_houseId].rent = _rental;
 	}
-	/* title: tenantSign
-	*  dev: tenant call this method to sign the rent house agreement 
-	*  Param: 
-	*/
+	function isAgree() public pure returns(bool isIndeed) {
+        return true;
+    }
 	function tenantSign(bytes32 _houseId, string _tenant, uint256 _rental, uint _signHowLong, 
 			bytes32 _signInfo) public returns(bool) {
 		uint256 startTime = now;
@@ -43,18 +38,10 @@ contract TenancyAgreement {
 		agrees[_houseId].endTime = end;
 		agrees[_houseId].isSign  = true;
 	}
-	/* title: getAgreement
-	*  dev: According to the house hash, query the agreement. 
-	*  Param: 
-	*/
 	function getAgreement(bytes32 _houseId) public returns(string, string, string, string, bytes32, bytes32) {
 		Agreement ag = agrees[_houseId];
 		return (ag.leaser, ag.tenant, ag.houseAddress, ag.describe, ag.leaserSign, ag.tenantSign);
 	}
-	/* title: getRentTenancyInfo
-	*  dev: Get Rent tenancy time inforamation 
-	*  Param: 
-	*/
 	function getRentTenancyInfo(bytes32 _houseId) public returns(uint256, uint256, uint256, uint256) {
 		Agreement ag = agrees[_houseId];
 		return (ag.rent, ag.yearRent, ag.startTime, ag.endTime);
