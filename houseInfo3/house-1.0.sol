@@ -1,5 +1,5 @@
 pragma solidity ^0.4.24;
-import './agreement.sol';
+// import './agreement.sol';
 
 interface TokenInterface {
 	function transfer(address _to, uint256 _value) external  returns (bool success);
@@ -60,7 +60,7 @@ contract RentBasic {
 		uint256 operateTime; // 评论时间
 	}
 	TokenInterface token;
-	TenancyAgreement tenancyContract;
+	AgreementInterface tenancyContract;
 	RegisterInterface userRegister;
 	HouseInfo hsInformation;
 	mapping(bytes32 => HouseInfo) houseInfos; 
@@ -100,8 +100,8 @@ contract RentBasic {
 		require(token.isToken());
 		userRegister = RegisterInterface(_register);
 		require(userRegister.isRegister());
-		// tenancyContract = AgreementInterface(_agreer);
-		// require(tenancyContract.isAgree());
+		tenancyContract = AgreementInterface(_agreer);
+		require(tenancyContract.isAgree());
 	}
 
 	modifier gtMinMoney(uint amount) {
@@ -191,8 +191,8 @@ contract RentBasic {
  			tenancyContract.tenantSign(_houseId, _name, _rental, _signHowLong, signatrue);
  			hsReleaseInfos[_houseId].state = HouseState.Renting;
 		} else {
-			// tenancyContract.newAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue,_rental, _signHowLong);
-			tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue, _rental, _signHowLong);
+			tenancyContract.newAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue, _rental, _signHowLong);
+			// tenancyContract = new TenancyAgreement(_name, _houseId, hsInfo.houseAddress, hsInfo.descibe, signatrue, _rental, _signHowLong);
 		}
 		// client start timer
 		SignContract(sender, _houseId, _signHowLong, _rental, signatrue, nowTime);
