@@ -30,7 +30,7 @@ contract RentToken {
     // totalTokenSold
     uint256 public totalTokenSold = 0;
     uint256 public releaseTokenTime = block.timestamp;
-     event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     /**
      * @dev Fix for the ERC20 short address attack.
@@ -148,7 +148,7 @@ contract RentToken {
         returns (bool success) {
         require((_amount == 0) || (allowed[msg.sender][_spender] == 0));
         allowed[msg.sender][_spender] = _amount;
-         Approval(msg.sender, _spender, _amount);
+        Approval(msg.sender, _spender, _amount);
         return true;
     }
 

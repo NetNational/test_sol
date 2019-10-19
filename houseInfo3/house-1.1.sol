@@ -12,33 +12,34 @@ interface RegisterInterface {
 }
 contract RentBasic {
 	enum HouseState {
-		ReleaseRent,  
-		WaitRent,  
-		Renting,  
-		EndRent,  
-		Cance,  
-		ReturnRent  
+		ReleaseRent,  // 发布租赁中
+		WaitRent,   // 租客交付定金后，请求租赁中
+		Renting,  // 租赁中
+		EndRent,   // 完成租赁
+		Cance,   // 取消租赁
+		BreakRent  // 解除租赁
 	}
 	HouseState defaultState = HouseState.ReleaseRent;
 	struct HouseInfo {			
-			uint8    landRate; 
-		    uint8    ratingIndex;  
-		    uint8    huxing;     
-			string   houseAddress; 		
-			bytes32  houseId;   
-			string   descibe;	
-			string	 landlordInfo;  			
-			string   hopeYou;  		
-			address  landlord; 		
+			uint8    landRate; // 房东信用等级 1、信用非常好，2、信用良好，3、信用一般，4、信用差
+		    uint8    ratingIndex;  // 评级指数
+		    uint8    huxing;  // 户型（1/2/3居）		    
+			string   houseAddress; // 房屋地址			
+			bytes32  houseId;   // 房屋hash
+			string   descibe;	// 房屋描述
+			string	 landlordInfo; //房东情况 			
+			string   hopeYou;  // 期待你的描述			
+			address  landlord; // 房东地址		
 	}
 	struct HouseReleaseInfo {
-		HouseState    state;  
-		uint32        tenancy;
-		uint256       rent; 
-		uint          releaseTime;  
-		uint          updateTime; 
-		uint          dealineTime;  
-		bool          existed; 
+		HouseState    state;   // 当前的状态
+		uint32        tenancy; // 租期
+		uint256       rent; // 租金
+		uint          releaseTime;  // 发布时间
+		uint          updateTime; // 更新时间
+		uint          dealineTime;  // 截止时间
+		bool          existed; // 该hash对应的House是否存在
+		bool		  ischecked; // 毁约时是否通过管理员审核
 	}
 	// 租客对某一房源评价
 	struct RemarkHouse {
@@ -54,6 +55,11 @@ contract RentBasic {
 		string  remarkTenant; // 对租客评价
 		uint256 operateTime; // 评论时间
 	}
+	// 毁约时惩罚内容
+	struct PunishCtx {
+		uint punishAmount; // 惩罚的数量
+		address punishAddr; // 惩罚的地址
+	}
 	TokenInterface token;
 	TenancyAgreement tenancyContract;
 	RegisterInterface userRegister;
@@ -63,6 +69,7 @@ contract RentBasic {
 	mapping(address => uint) public addrMoney; 
 	mapping(bytes32 => RemarkHouse) remarks; 
 	mapping(bytes32 => RemarkTenant) public remarkTenants; 
+	mapping(bytes32 => PunishCtx) punishRelation;
 	mapping(bytes32 => mapping(address => uint)) bonds; 
 	mapping(address => address) l2rMaps;
 	mapping(address => uint256) creditManager; 
@@ -71,10 +78,10 @@ contract RentBasic {
 
 	address public owner; 
 	bool public flag;
-	address public receiverPromiseMoney = 0x3c13520Bc27C8A38FD67533d02071e775da7b12F; 
+	address public receiverPromiseMoney = 0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB; 
 	address public distributeRemarkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; 
 	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; 
-	address public punishAddr = 0x960bEDf8DF0A6e66B470ba560eE6fD1e0e32Ee23; 
+	address public punishAddr = 0x583031D1113aD414F02576BD6afaBfb302140225; 
 
 	uint256 promiseAmount = 500 * (10 ** 8);
 	uint256 punishLevel1Amount = 10 * (10 ** 8); 
@@ -85,7 +92,7 @@ contract RentBasic {
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, string _ramark);
 	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr);
-	event BreakContract(bytes32 _houseId, address indexed sender,string _reason,uint8 _punishLevel,uint256 uptime);
+	event BreakContract(bytes32 _houseId, address indexed sender,string _reason, uint256 uptime);
 	event WithdrawDeposit(bytes32 _houseId,address indexed sender,uint256 amount,uint256 nowTime);
 	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
 	
@@ -140,7 +147,8 @@ contract RentBasic {
 			releaseTime: nowTimes,
 			updateTime: nowTimes,
 			dealineTime: deadTime,
-			existed: true
+			existed: true,
+			ischecked: false
 		});
 		// releations[houseId].leaser = houseOwer;
 		ReleaseBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
@@ -202,14 +210,14 @@ contract RentBasic {
 	 	require(amount > 0 , "Amount is error !");
 	 	address sender = msg.sender;
 	 	if (sender == hs.landlord) {
-	 		require(addrMoney[msg.sender] > amount);
-	 		require(token.transferFrom(receiverPromiseMoney, sender, amount), "withdraw error");
+	 		require(addrMoney[msg.sender] >= amount && amount >= 0);
 	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
+	 		require(token.transferFrom(receiverPromiseMoney, sender, amount), "withdraw error");
 	 	} else {
 	 		// Return the bond to the tenant
-	 		require(bonds[_houseId][sender] >= amount);
+	 		require(bonds[_houseId][sender] >= amount && amount >= 0);
+	 		bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
 		 	require(token.transferFrom(saveTenanantAddr, sender, amount), "Transfer fail");
-		 	bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
 	 	}
 	 	uint256 nowTime = now;
 	 	hsReleaseInfos[_houseId].updateTime = nowTime;
@@ -232,40 +240,57 @@ contract RentBasic {
 	  @dev breakContract
 	  @des this method call should be checked by admin, then it call be called.
 	*/	
-	function breakContract(bytes32 _houseId, string _reason, uint8 _punishLevel) public onlyLogin returns(bool) {
+	function breakContract(bytes32 _houseId, string _reason) public onlyLogin returns(bool) {
 		HouseInfo hus = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
 		require(relInfo.existed, "House is not existed !");
+		require(relInfo.ischecked, "Apply must pass admin checked");
+		require(relInfo.state != HouseState.Cance || relInfo.state != HouseState.BreakRent,"Break Contract reqiure house not in cance or return rent status!");
 		// If the house is in WaitRent, anyone can break the house normal
 		if 	(relInfo.state == HouseState.WaitRent)	{
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
+		} else if (relInfo.state == HouseState.Renting) {
+			hsReleaseInfos[_houseId].state = HouseState.ReturnRent;
 		}
-		address sender = msg.sender;
-		// If the house is in Renting, they punish one side
+		address sender = msg.sender;	
 		if (relInfo.state != HouseState.ReleaseRent) {
-		// 	// According the reason and punish level judge, lock the amount
-		// 	// TODO this should be vote by owner
-			uint256 amount = punishLevel1Amount;
-			// uint256 amount = getPunishAmount(_punishLevel);
-			if (sender == hus.landlord) {
-				// token.transfer(sender, amount);
-				require(token.transferFrom(receiverPromiseMoney, punishAddr, amount),"transfer fail");
-				address another = l2rMaps[sender];
-				bonds[_houseId][another] = bonds[_houseId][another] - amount;
+			PunishCtx puCtx = punishRelation[_houseId];
+			uint256 amount = puCtx.punishAmount;
+			address puSender = receiverPromiseMoney;
+			// 如果房东是被惩罚的地址并且是房东调用时，则惩罚房东
+			if (sender == puCtx.punishAddr && sender == hus.landlord) {		
+				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
+			} else if (sender == puCtx.punishAddr && sender == hus.landlord) { // 惩罚租客
+				puSender = saveTenanantAddr;
+			    bonds[_houseId][another] = bonds[_houseId][another] - amount;
+			} else if (sender == hus.landlord) { // 若房东不是被惩罚者时候，调用此方法则惩罚租客
+				puSender = saveTenanantAddr;
+			    bonds[_houseId][another] = bonds[_houseId][another] - amount;
 			} else {
-				// token.transfer(sender, amount);
-				require(token.transferFrom(saveTenanantAddr, punishAddr, amount),"transfer fail");
-			    addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
-			}		
-			lockAmount[l2rMaps[sender]] = lockAmount[l2rMaps[sender]] + amount;
+				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
+			}
+			require(token.transferFrom(puSender, punishAddr, amount),"transfer fail!");
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
 		}
 		// Update releaseHouse information
 		uint256 nowTime = now;
 		hsReleaseInfos[_houseId].updateTime = nowTime;	
-		BreakContract(_houseId, sender, _reason, _punishLevel, nowTime);
+		BreakContract(_houseId, sender, _reason, nowTime);
 		return true;
 	}
+	/*
+ 	* @dev checkBreak
+ 	* des: Admin judge punish one of the rent house. 
+	*/
+	function checkBreak(bytes32 _houseId, uint _punishAmount, address _punishAddr) public returns(bool){
+		address sender = msg.sender;
+		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
+		hsReleaseInfos[_houseId].ischecked = true;
+		punishRelation[_houseId].punishAmount = _punishAmount;
+		punishRelation[_houseId];.punishAddr = _punishAddr;
+		return true;
+	}
+
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) onlyLogin public returns(bool) {
 		address sender = msg.sender;
 		HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
