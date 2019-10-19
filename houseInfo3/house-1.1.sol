@@ -12,14 +12,14 @@ interface RegisterInterface {
 }
 contract RentBasic {
 	enum HouseState {
-		ReleaseRent,  // 发布租赁中
+		Release,  // 发布租赁中
 		WaitRent,   // 租客交付定金后，请求租赁中
 		Renting,  // 租赁中
 		EndRent,   // 完成租赁
 		Cance,   // 取消租赁
 		BreakRent  // 解除租赁
 	}
-	HouseState defaultState = HouseState.ReleaseRent;
+	HouseState defaultState = HouseState.Release;
 	struct HouseInfo {			
 			uint8    landRate; // 房东信用等级 1、信用非常好，2、信用良好，3、信用一般，4、信用差
 		    uint8    ratingIndex;  // 评级指数
@@ -46,14 +46,14 @@ contract RentBasic {
 		address tenant; // 租客地址	
 		uint8   ratingIndex; // 评级级别
 		string remarkLandlord; // 对房东评价
-		uint256 operateTime; // 评论时间
+		uint256 optTime; // 评论时间
 	}
 	// 房东对某一租客评价
 	struct RemarkTenant {
 		address leaser; // 房东
 		uint8   ratingIndex; // 评价级别
 		string  remarkTenant; // 对租客评价
-		uint256 operateTime; // 评论时间
+		uint256 optTime; // 评论时间
 	}
 	// 毁约时惩罚内容
 	struct PunishCtx {
@@ -74,12 +74,12 @@ contract RentBasic {
 	mapping(address => address) l2rMaps;
 	mapping(address => uint256) creditManager; 
 	mapping(address => uint256) lockAmount;
-	
+	mapping(address => bool) addrs;
 
 	address public owner; 
 	bool public flag;
-	address public receiverPromiseMoney = 0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB; 
-	address public distributeRemarkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; 
+	address public recPromiseAddr = 0x4B0897b0513fdC7C541B6d9D7E929C4e5364D2dB; 
+	address public disRrkAddr = 0xA4ef5514CCfe79B821a3F36A123e528e096cEa28; 
 	address public saveTenanantAddr = 0xF87932Ee0e167f8B54209ca943af4Fad93B3B8A0; 
 	address public punishAddr = 0x583031D1113aD414F02576BD6afaBfb302140225; 
 
@@ -87,8 +87,8 @@ contract RentBasic {
 	uint256 punishLevel1Amount = 10 * (10 ** 8); 
 	uint256 remarkAmount = 4 * (10 ** 8);
 
-	event ReleaseInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
-	event ReleaseBasic(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,string _describe, string _info, string _hopeYou,address indexed _landlord);		
+	event RelInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
+	event RelBasic(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,string _describe, string _info, string _hopeYou,address indexed _landlord);		
 	event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event CommentHouse(address indexed _commenter, uint8 _rating, string _ramark);
 	event RequestSign(address indexed _sender, bytes32 _houseId,uint256 _realRent, address indexed saveTenanantAddr);
@@ -102,6 +102,8 @@ contract RentBasic {
 		require(token.isToken());
 		userRegister = RegisterInterface(_register);
 		require(userRegister.isRegister());
+		addrs[recPromiseAddr] = true;
+		addrs[punishAddr] = true;
 		// tenancyContract = AgreementInterface(_agreer);
 		// require(tenancyContract.isAgree());
 	}
@@ -125,7 +127,7 @@ contract RentBasic {
 		uint256 deadTime = nowTimes + 7 days;
 		address houseOwer = msg.sender;
 		// releaser should hold not less than 500 BLT
-		require(token.transferFrom(msg.sender, receiverPromiseMoney,  promiseAmount),"Release_Balance is not enough");
+		require(token.transferFrom(msg.sender, recPromiseAddr,  promiseAmount),"Release_Balance is not enough");
 		addrMoney[houseOwer] = promiseAmount;
 		bytes32 houseIds = keccak256(abi.encodePacked(houseOwer, nowTimes, deadTime));
 		hsInformation = HouseInfo({				
@@ -151,8 +153,8 @@ contract RentBasic {
 			ischecked: false
 		});
 		// releations[houseId].leaser = houseOwer;
-		ReleaseBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
-		ReleaseInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
+		RelBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
+		RelInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
 		return houseIds;
 	}
 	function deadReleaseHouse(bytes32 _houseId) returns(bool) {
@@ -207,15 +209,15 @@ contract RentBasic {
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(reInfo.existed, "Not find the house!");
 	 	require(reInfo.state == HouseState.EndRent || reInfo.state == HouseState.Cance, "House rent is not finished, if you want break the rent, please break contract first!");
-	 	require(amount > 0 , "Amount is error !");
+	 	require(amount > 0 , "Amount must less than 0 !");
 	 	address sender = msg.sender;
 	 	if (sender == hs.landlord) {
-	 		require(addrMoney[msg.sender] >= amount && amount >= 0);
+	 		require(addrMoney[msg.sender] >= amount);
 	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
-	 		require(token.transferFrom(receiverPromiseMoney, sender, amount), "withdraw error");
+	 		require(token.transferFrom(recPromiseAddr, sender, amount), "withdraw error");
 	 	} else {
 	 		// Return the bond to the tenant
-	 		require(bonds[_houseId][sender] >= amount && amount >= 0);
+	 		require(bonds[_houseId][sender] >= amount);
 	 		bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
 		 	require(token.transferFrom(saveTenanantAddr, sender, amount), "Transfer fail");
 	 	}
@@ -232,9 +234,9 @@ contract RentBasic {
 			  houseInfo.landlordInfo,houseInfo.hopeYou, houseInfo.landlord);		
 	}
 	function getHouseReleaseInfo(bytes32 _houseId) public returns(HouseState, uint32, uint256, uint, uint, bool) {
-		HouseReleaseInfo releaseInfo = hsReleaseInfos[_houseId];
-		require(releaseInfo.existed, "Require the house is existed !");
-		return (releaseInfo.state, releaseInfo.tenancy, releaseInfo.rent, releaseInfo.releaseTime, releaseInfo.dealineTime, releaseInfo.existed);		
+		HouseReleaseInfo RelInfo = hsReleaseInfos[_houseId];
+		require(RelInfo.existed, "Require the house is existed !");
+		return (RelInfo.state, RelInfo.tenancy, RelInfo.rent, RelInfo.releaseTime, RelInfo.dealineTime, RelInfo.existed);		
 	}	
 	/*
 	  @dev breakContract
@@ -250,23 +252,24 @@ contract RentBasic {
 		if 	(relInfo.state == HouseState.WaitRent)	{
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
 		} else if (relInfo.state == HouseState.Renting) {
-			hsReleaseInfos[_houseId].state = HouseState.ReturnRent;
+			hsReleaseInfos[_houseId].state = HouseState.BreakRent;
 		}
 		address sender = msg.sender;	
-		if (relInfo.state != HouseState.ReleaseRent) {
+		if (relInfo.state != HouseState.Release) {
 			PunishCtx puCtx = punishRelation[_houseId];
 			uint256 amount = puCtx.punishAmount;
-			address puSender = receiverPromiseMoney;
+			address puSender = recPromiseAddr;
 			// 如果房东是被惩罚的地址并且是房东调用时，则惩罚房东
+			address another = l2rMaps[sender];
 			if (sender == puCtx.punishAddr && sender == hus.landlord) {		
 				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
-			} else if (sender == puCtx.punishAddr && sender == hus.landlord) { // 惩罚租客
+			} else if (sender == puCtx.punishAddr && sender != hus.landlord) { // 惩罚租客
 				puSender = saveTenanantAddr;
 			    bonds[_houseId][another] = bonds[_houseId][another] - amount;
 			} else if (sender == hus.landlord) { // 若房东不是被惩罚者时候，调用此方法则惩罚租客
 				puSender = saveTenanantAddr;
 			    bonds[_houseId][another] = bonds[_houseId][another] - amount;
-			} else {
+			} else { // 惩罚房东
 				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
 			}
 			require(token.transferFrom(puSender, punishAddr, amount),"transfer fail!");
@@ -284,10 +287,13 @@ contract RentBasic {
 	*/
 	function checkBreak(bytes32 _houseId, uint _punishAmount, address _punishAddr) public returns(bool){
 		address sender = msg.sender;
+        if (!addrs[sender]) {
+        	return false;
+        }
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
 		hsReleaseInfos[_houseId].ischecked = true;
 		punishRelation[_houseId].punishAmount = _punishAmount;
-		punishRelation[_houseId];.punishAddr = _punishAddr;
+		punishRelation[_houseId].punishAddr = _punishAddr;
 		return true;
 	}
 
@@ -304,7 +310,7 @@ contract RentBasic {
 			creditManager[landlord] += _ratingIndex;
 			remarkTenants[_houseId] = RemarkTenant(sender, _ratingIndex, _ramark, now);
 		}
-		require(!token.transferFrom(distributeRemarkAddr,sender, remarkAmount), "Distribute fail !");
+		require(!token.transferFrom(disRrkAddr,sender, remarkAmount), "Distribute fail !");
 		CommentHouse(sender, _ratingIndex, _ramark);
 		return true;
 	}
