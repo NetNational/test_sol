@@ -104,8 +104,6 @@ contract RentBasic {
 		require(userRegister.isRegister());
 		addrs[recPromiseAddr] = true;
 		addrs[punishAddr] = true;
-		// tenancyContract = AgreementInterface(_agreer);
-		// require(tenancyContract.isAgree());
 	}
 
 	modifier gtMinMoney(uint amount) {
