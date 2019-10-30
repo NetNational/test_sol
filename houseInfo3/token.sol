@@ -1,8 +1,20 @@
 pragma solidity ^0.4.24;
 //  RentHouse Foundation.
+
+// contract ERC20Interface {
+//     function totalSupply() public view returns (uint256 _totalSupply);
+//     function balanceOf(address _owner) public view returns (uint256 balance);
+//     function transfer(address _to, uint256 _value) public returns (bool success);
+//     function transferFrom(address _from, address _to, uint256 _value) public returns (bool success);
+//     function approve(address _spender, uint256 _value) public returns (bool success);
+//     function allowance(address _owner, address _spender) public view returns (uint256 remaining);
+//     event Transfer(address indexed _from, address indexed _to, uint256 _value);
+//     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+// }
+
 contract RentToken {
     using SafeMath for uint256;
-    uint256 public constant decimals = 8;
+    uint8 public constant decimals = 8;
 
     string public constant symbol = "RentToken";
     string public constant name = "BLT";
@@ -30,7 +42,7 @@ contract RentToken {
     // totalTokenSold
     uint256 public totalTokenSold = 0;
     uint256 public releaseTokenTime = block.timestamp;
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+     event Transfer(address indexed _from, address indexed _to, uint256 _value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     /**
      * @dev Fix for the ERC20 short address attack.
@@ -143,12 +155,10 @@ contract RentToken {
     // Allow _spender to withdraw from your account, multiple times, up to the _value amount.
     // If this function is called again it overwrites the current allowance with _value.
     function approve(address _spender, uint256 _amount)
-        public
-
-        returns (bool success) {
-        require((_amount == 0) || (allowed[msg.sender][_spender] == 0));
-        allowed[msg.sender][_spender] = _amount;
-        Approval(msg.sender, _spender, _amount);
+        public returns (bool success) {
+        require((_amount > 0) && (allowed[msg.sender][_spender]+_amount <= balances[msg.sender]));
+        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].Add(_amount);
+         Approval(msg.sender, _spender, _amount);
         return true;
     }
 
@@ -158,19 +168,6 @@ contract RentToken {
         view
         returns (uint256 remaining) {
         return allowed[_owner][_spender];
-    }
-
-    function increaseAmount() internal onlyOwner  {
-        uint256  nowTime = block.timestamp;
-        uint256 nextTime = releaseTokenTime.Add(_increaseInterval);
-        require(nextTime > nowTime);
-        _totalSupply = _totalSupply.Add(_maxIncreaseAmount);
-        uint256   timeInterval = 365 days;
-        _increaseInterval = _increaseInterval.Add(timeInterval);
-    } 
-
-    function decreaseAmount(uint amount) internal onlyOwner {
-        _totalSupply = _totalSupply.Sub(amount);
     }
 
 }
