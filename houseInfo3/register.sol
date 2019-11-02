@@ -22,6 +22,12 @@ contract UserRegister {
 
 	mapping(string => UserListStruct) private userListStruct; //用户名映射地址
 	mapping(address => bool) userLogins; // 判断用户是否登录
+
+	event CreateUser(address indexed _userAddress, string _username); // 创建User事件
+	event UpdateUser(address indexed _userAddr, string _userName);
+	event LoginEvent(address indexed _userAddr, string _userName);
+	event LoginOutEvent(address indexed _userAddr, string _userName);
+
     function isRegister() public constant returns(bool isIndeed) {
         return true;
     }
@@ -45,14 +51,15 @@ contract UserRegister {
 
 
 	//创建用户信息
-	function createUser(address _userAddress, string _username, string _pwd) public returns (uint index, uint nindex) {
+	function createUser(address _userAddress, string _username, string _pwd) public returns(bool) {
 	    require(!isExitUserAddress(_userAddress), "this address already register"); //如果地址已存在则不允许再创建
         require(!isExitUsername(_username), "the name already occupy by some one"); //如果地址已存在则不允许再创建
 	    userAddresses.push(_userAddress); //地址集合push新地址
 	    userStruct[_userAddress] = UserStruct(_userAddress, now,userAddresses.length - 1, _username, _pwd);
 	    usernames.push(_username); //用户名集合push新用户
 	    userListStruct[_username] = UserListStruct(_userAddress, usernames.length - 1); //用户所对应的地址集合
-	    return (userAddresses.length - 1, usernames.length-1);
+	    CreateUser(_userAddress, _username); // 创建User事件
+	    return true;
 	}
 
 	//获取用户个人信息
@@ -69,6 +76,7 @@ contract UserRegister {
 	    UserStruct memory ustruct = userStruct[_userAddr];
 	    if ((keccak256(userStruct[_userAddr].username) == keccak256(_userName)) && (keccak256(userStruct[_userAddr].pwd) == keccak256(_pwd))) {
 	        userStruct[_userAddr].pwd = _newpwd;
+	        UpdateUser(_userAddr, _userName);
 	        return true;
 	    }
 		return false;
@@ -78,8 +86,12 @@ contract UserRegister {
 	         createUser(_userAddr, _userName, _pwd);
 	     }
 	     require(!isLogin(_userAddr), "user already sign in");
+	     if (!isLogin(_userAddr)) {
+	         return false;
+	     }
 		 if ((keccak256(userStruct[_userAddr].username) == keccak256(_userName)) && (keccak256(userStruct[_userAddr].pwd) == keccak256(_pwd))) {
 		 	userLogins[_userAddr] = true;
+		 	LoginEvent(_userAddr, _userName);
 		 	return true;
 		 } 
 		 return false;
@@ -87,6 +99,7 @@ contract UserRegister {
 	function logout(address _userAddr, string _userName, string _pwd) public returns (bool) {
 	    if (isLogin(_userAddr)) {
 	        userLogins[_userAddr] = false;
+	        LoginOutEvent(_userAddr, _userName);
 	        return true;
 	    } else {
 	        return false;
