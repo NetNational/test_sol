@@ -22,6 +22,7 @@ contract UserRegister {
 
 	mapping(string => UserListStruct) private userListStruct; //用户名映射地址
 	mapping(address => bool) userLogins; // 判断用户是否登录
+	// mapping(string => )
 
 	event CreateUser(address indexed _userAddress, string _username); // 创建User事件
 	event UpdateUser(address indexed _userAddr, string _userName);
@@ -43,6 +44,11 @@ contract UserRegister {
 	    return (keccak256(usernames[userListStruct[_username].index]) == keccak256(_username));
 	}
 
+	// 判断用户是否已注册
+	function isAlreayReg(address _userAddress, string _uername) public constant returns(bool) {
+		return (isExitUserAddress(_userAddress) && isExitUsername(_uername));
+	}
+
 	//根据用户名查找对于的address
 	function findAddrByName(string _username) public constant returns (address userAddress) {
 	    require(isExitUsername(_username));
@@ -52,8 +58,7 @@ contract UserRegister {
 
 	//创建用户信息
 	function createUser(address _userAddress, string _username, string _pwd) public returns(bool) {
-	    require(!isExitUserAddress(_userAddress), "this address already register"); //如果地址已存在则不允许再创建
-        require(!isExitUsername(_username), "the name already occupy by some one"); //如果地址已存在则不允许再创建
+        require(!isAlreayReg(_userAddress, _username), "the name already occupy by some one or the address already register!"); //如果地址已存在则不允许再创建
 	    userAddresses.push(_userAddress); //地址集合push新地址
 	    userStruct[_userAddress] = UserStruct(_userAddress, now,userAddresses.length - 1, _username, _pwd);
 	    usernames.push(_username); //用户名集合push新用户

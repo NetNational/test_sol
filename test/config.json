@@ -1,0 +1,15 @@
+
+{
+	"NodeAddress": "40.81.27.202",
+	"-":"通用地址",
+    "ServerAddress":"127.0.0.1",
+    "ServerPort":"8080",
+    "-":"通用地址",
+	"DBAddress": "127.0.0.1",
+	"DBPort":"3306",
+    "DBUser":"root",
+    "DBPassword":"123456",
+    "DBName":"db_walletusdt_omni",
+    "DBPrefix":"usdt_",
+    "DBConnectNumLimit": "100"
+}
