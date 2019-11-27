@@ -43,17 +43,21 @@ function initialize() {
   });
   // 登录
   app.get('/login/:address/:username/:pwd/:prikey', (req, res) => {
-    console.log("-----get adddress params----", req.params)
+    console.log("-----login params----", req.params)
+    setResHeadr(res);
     contractReg.then(con => {
-      RegisterFun.login(con, req.params.prikey, req.params.address,req.params.username, req.username.pwd).then(ctx => {
+      console.log("start login contract");
+      RegisterFun.login(con, req.params.prikey, req.params.address,
+          req.params.username, req.params.pwd).then(ctx => {
         if (ctx) { // Already sign
-          res.send({
-            "status": ctx.status,
-            "txHash": ctx.transactionHash
-          });
+          res.send(ctx);
         }
+      }).catch(err => {
+          console.log("Login callback", err);
+          res.send(err);
       });
     }).catch(err => {
+      console.log("login err", err);
       res.send({
         "status": false,
         "err": err

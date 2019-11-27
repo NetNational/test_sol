@@ -12,61 +12,6 @@ async function initReg() {
 	let contract = await getContract(filePath, contractAddress);
 	return contract;
 }
-
-// initReg().then(con => {
-// 	// console.log(con.methods)
-// 	let addr = "0xaDCe9984d4d2E3936A0eB6F21a6105217a3E8766";
-// 	// isExitUserAddress(con, addr).then(res => {
-// 	// 	console.log(res)
-// 	// });
-// 	let priKey = "0x36923250A8BF14292202A7932DA90A3222560E8FF3C0426FC6B6199F1EE29023";
-// 	let username = "zs";
-// 	let pwd = "123";
-// 	let addr2 = "0x5b0ccb1c93064Eb8Fd695a60497240efd94A44ed";
-// 	let priKey2 = "0x502D29356356AE02B7E23ECC851CCA0F21FE9CDADEF1FBAB158EB82611F27229";
-// 	let username2 = "ym";
-	// let addr4 = "0x8E0f4A1f3C0DBEA0C73684B49aE4AD02789B3EC4";
-	// let priKey4 = "0xFFE962244D80F95197089FE5FF87BE0163D485E7986A7070A498136012FD7B61";
-	// let username4 = "login";
-	// let pwd = "pwd";
-	// login(con, priKey4, addr4, username4, pwd).then((res, rej) => {
-	// 	console.log(4343, res);
-	// 	isLogin(con, addr4).then(res => {
-	// 		console.log("isLogin", 444, res)
-	// 		getFalg(con).then(res => {
-
-	// 		})
-	// 	});
-	// });
-// 	let addr3 = "0x7c943AAd08FE4FAC036FD8185Db145ae88dE1bb3";
-// 	let priKey3 = "0x052719F3BB83E6081F064CBF4A2087067CD55F088404D0A20DB5CDCB075D867B";
-// 	let username3 = "ym2"; 
-// 	// login(con, priKey3, addr3, username3, pwd).then((res, rej) => {
-// 	// 	console.log(4343, res);
-// 	// 	isLogin(con, addr3).then(res => {
-// 	// 		console.log("isLogin", 444, res)
-// 	// 		getFalg(con).then(res => {
-
-// 	// 		})
-// 	// 	});
-// 	// });
-// 	// logout(con, priKey, addr, username, pwd).then((res, rej) => {
-// 	// 	console.log(res);
-// 	// });
-// 	// findUserInfo(con, addr).then(res => {
-// 	// 	console.log(res);
-// 	// })
-// 	// let addr3 = "0x7c943AAd08FE4FAC036FD8185Db145ae88dE1bb3";
-// 	// getFalg(con).then(res => {
-
-// 	// })
-// 	// isLogin(con, addr3).then(res => {
-// 	// 	console.log("isLogin", 444, res)
-// 	// 	getFalg(con).then(res => {
-
-// 	// 	})
-// 	// });
-// });
 function getFalg(contract) {
 	return new Promise(resolve => {
 		contract.methods.getFlag1().call().then(res => {
@@ -78,6 +23,7 @@ function getFalg(contract) {
 
 function isAlreayReg(contract, addr, username) {
 	return new Promise(resolve => {
+		console.log("Is already Register");
   	    contract.methods.isAlreayReg(addr, username).call().then(res => {
 			if (res) {
 				console.log("this user already exist");
@@ -86,42 +32,18 @@ function isAlreayReg(contract, addr, username) {
 				resolve(false);
 			}
 		}).catch(err => {
-				console.log(err)
+				console.log(err);
+				reject(err);
 		});
     });
 }
 
-function isExitUserAddress(contract, addr) {
-	return new Promise(resolve => {
-  	    contract.methods.isExitUserAddress(addr).call().then(res => {
-			if (res) {
-				console.log("this user already exist");
-				resolve(res);
-			} else {
-				resolve(false);
-			}
-		}).catch(err => {
-				console.log(err)
-		});
-    });
-}
-function isLogin(contract, addr) {
-	return new Promise((resolve, reject) => {
-		contract.methods.isLogin(addr).call().then(res => {
-			// console.log("res", res)
-			if (res) {
-				resolve(res);
-			} else {
-				resolve(false);
-			}
-		});
-	});
-}
 // 免费注册链上用户
 function createUser(contract, addr, username, userId, pwd, cardId) {
     return new Promise((resolve, reject) => {
-    	console.log("create user", addr)
+    	console.log("create user", addr);
     	isAlreayReg(contract, addr, username).then(res => {
+    		console.log("is al rec", res)
     		if (!res) {
     			// const loginFun = contract.methods.createUser(addr, username, userId, pwd);   // 合约需要加入id
                 const loginFun = contract.methods.createUser(addr, username, pwd, userId, cardId);
@@ -132,16 +54,19 @@ function createUser(contract, addr, username, userId, pwd, cardId) {
                     if (flag) {
                     	resolve({status:flag, data:ctx.transactionHash});
                     } else {
-                    	resolve({status:false, err:"Create this user fail!"});
+                    	resolve({status:false, err:"注册失败!"});
                     }             
                 }).catch(err1 => {
-                  console.log("Create user error");
+                  console.log("Create user error", err1);
                   reject({status:false, err:err1});
                 });
             } else {
-              resolve({status:false, err:"This address or user name already register"});
+              resolve({status:false, err:"该用户已注册！"});
            };
-    	});
+    	}).catch(err1 => {
+           console.log("Create user error", err1);
+           reject({status:false, err:"网络繁忙，请稍后重试!"});
+        });
    });
 }
 
@@ -164,28 +89,47 @@ function decodeLog(contract, receipt, eventName) {
 // Or, the user must login firstly.
 function login(contract, privateKey, addr, username, pwd) {
 	return new Promise((resolve, reject) => {
-		isAlreayReg(contract, addr, username).then(res => {
-			if (res) {
-				// console.log("Find:", res);
+		isLogin(contract, addr).then(res => {
+			console.log("isLogin res",res)
+			if (!res) {
 				const loginFun = contract.methods.login(addr, username, pwd);
 		        const logABI = loginFun.encodeABI();
 		        packSendMsg(addr, privateKey, contractAddress, logABI).then(receipt => {  
-		            console.log("Login callback: " ,receipt)      			        	
-		        	if (receipt) {
-		        		console.log("Login success");
-						resolve(decodeLog(contract, receipt, 'LoginEvent'));   
-		        	}  else {
-						resolve({status:false, data: "Login fail!"});
-					}
+		            console.log("Login callback: " ,receipt) 
+					let [flag, ctx] = decodeLog(contract, receipt, 'LoginEvent');
+                    if (flag) {
+                    	resolve({status:flag, data:ctx.transactionHash});
+                    } else {
+                    	resolve({status:false, err:"登录失败!"});
+                    }  
 				}).catch(err => {
-					console.log("Already login in");
-					reject({status:false, data: err});
+					console.log("Login fail！");
+					reject({status:false, err: "请检查余额是否不足或者是否已注册!"});
 				});
 			} else {
-				resolve({status:false, data: "please register!"});			
+				resolve({status:false, err: "该用户已登录!"});			
 			}
+		}).catch(err => {
+			console.log("isLogin fail!", err);
+			reject({status:false, err: err});	
 		});
     });
+}
+
+function isLogin(contract, addr) {
+	return new Promise((resolve, reject) => {
+		contract.methods.isLogin(addr).call().then(res => {
+			// console.log("res", res)
+			if (res) {
+				resolve(res);
+			} else {
+				resolve(false);
+			}
+		}).catch(err => {
+			console.log("isLogin err: ", err);
+			reject(err);
+		});
+	});
 }
 
 function findUserInfo(contract, addr) {
@@ -209,12 +153,27 @@ function logout(contract, privateKey, addr, username, pwd) {
 		        		resolve(receipt);
 		        	} 
 				}).catch(err => {
-					console.log("Already login out");
+					console.log("Already login out", err);
 					reject(err);
 				});
 			} else {
 				reject("this user doesn't sign in!");			
 			}
+		});
+    });
+}
+
+function isExitUserAddress(contract, addr) {
+	return new Promise(resolve => {
+  	    contract.methods.isExitUserAddress(addr).call().then(res => {
+			if (res) {
+				console.log("this user already exist");
+				resolve(res);
+			} else {
+				resolve(false);
+			}
+		}).catch(err => {
+				console.log(err)
 		});
     });
 }
@@ -238,20 +197,28 @@ function packSendMsg(formAddr, privateKey, toAddr, createABI) {
 			      chainId: 3,
 			      nonce: '0x' + nonce
 				}
+				console.log("start sign the transaction")
 				web3.eth.accounts.signTransaction(txParams, privateKey).then(signedTx => {
+					console.log("start send the transaction")
 			 		web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(receipt => {
 			 			if (receipt.status) {
 			 				console.log(receipt.transactionHash)
 			 				resolve(receipt);
 			 			} else {
-			 				console.log("this user already regiester");
-			 				reject("this user already regiester");
+			 				reject("发送交易失败!");
 			 			}
-			 		}).catch(err => {
-			 			reject(err);
+			 		}).catch(err1 => {
+			 			console.log("Send Fail:", err1);
+			 			reject(err1);
 			 		});
-				});
-			});
+				}).catch(err => {
+		 			console.log("Sign Fail:", err);
+		 			reject(err);
+		 		});;
+			}).catch(err => {
+	 			console.log("GetTransactionCount Fail:", err);
+	 			reject(err);
+	 		});
 		});	 	
 }
 

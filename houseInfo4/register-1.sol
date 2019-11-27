@@ -4,8 +4,8 @@ contract UserRegister {
 	//定义用户数据结构
 	struct UserStruct {
 		address userAddress;
-		uint userId; // 用户ID
-		uint cardId; //身份证号
+		uint16 userId; // 用户ID
+		uint32 cardId; //身份证号
 		uint time;
 	    uint index;
 	    string username;
@@ -26,8 +26,8 @@ contract UserRegister {
 	mapping(address => bool) userLogins; // 判断用户是否登录
 	// mapping(string => )
 
-	event CreateUser(address indexed _userAddress, string _username, uint _userId); // 创建User事件
-	event UpdateUser(address indexed _userAddr, string _userName, uint _userId);
+	event CreateUser(address indexed _userAddress, string _username, uint16 _userId); // 创建User事件
+	event UpdateUser(address indexed _userAddr, string _userName, uint16 _userId);
 	event LoginEvent(address indexed _userAddr, string _userName);
 	event LoginOutEvent(address indexed _userAddr, string _userName);
     // 只允许一部分管理员操作
@@ -63,7 +63,7 @@ contract UserRegister {
 
 
 	//创建用户信息
-	function createUser(address _userAddress, string _username, string _pwd, uint16 _userId, uint _cardId) public returns(bool) {
+	function createUser(address _userAddress, string _username, string _pwd, uint16 _userId, uint32 _cardId) public returns(bool) {
         require(!isAlreayReg(_userAddress, _username), "the name already occupy by some one or the address already register!"); //如果地址已存在则不允许再创建
 	    userAddresses.push(_userAddress); //地址集合push新地址
 	    userStruct[_userAddress] = UserStruct(_userAddress, _userId, _cardId, now, userAddresses.length - 1, _username, _pwd);
@@ -74,7 +74,7 @@ contract UserRegister {
 	}
 
 	//获取用户个人信息
-	function findUser(address _userAddress) public constant returns (address,uint, string, uint, uint) {
+	function findUser(address _userAddress) public constant returns (address,uint16, string, uint, uint) {
 	    require(isExitUserAddress(_userAddress));
 	    return (
 	        userStruct[_userAddress].userAddress,
@@ -84,7 +84,7 @@ contract UserRegister {
 	        userStruct[_userAddress].index); 
 	}
 	// 修改用户信息
-	function updateUser(address _userAddr, string _userName, string _pwd, string _newpwd, uint _userId) public returns(bool) {
+	function updateUser(address _userAddr, string _userName, string _pwd, string _newpwd, uint16 _userId) public returns(bool) {
 	    UserStruct memory ustruct = userStruct[_userAddr];
 	    if ((keccak256(userStruct[_userAddr].username) == keccak256(_userName)) && (keccak256(userStruct[_userAddr].pwd) == keccak256(_pwd))) {
 	        userStruct[_userAddr].userAddress =_userAddr;
