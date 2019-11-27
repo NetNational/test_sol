@@ -15,9 +15,7 @@ interface RemarkInterface {
 	function commentHouse(bytes32 _houseId, address _landlord, address _refeAddr, uint8 _ratingIndex, string _ramark) public returns(bool);
 }
 interface AuthInterface {
-	function authHouse(uint32 _idCard, uint _guid, string _owername) public returns(bytes32);
-	function approveVisit(address _addr) public returns(bool);
-	function getHouseOwer() public returns(uint32, uint, string, bytes32);
+	function contrctExist() public constant returns(bool);
 	function getHouseIds(address _addr) public constant returns(bytes32);
 	function getIsAuth(address _addr) public constant returns(bool);
 }
@@ -63,8 +61,7 @@ contract RentBasic {
 	RegisterInterface userRegister;
 	RemarkInterface remarkContract;
 	AuthInterface authContract;
-	// HouseInfo hsInformation;
-	HouseState public flag2;
+	// HouseState public flag2;
 	mapping(bytes32 => HouseInfo) houseInfos; 
 	mapping(bytes32 => HouseReleaseInfo) hsReleaseInfos; 
 	mapping(address => uint) public addrMoney; 
@@ -77,7 +74,7 @@ contract RentBasic {
 	mapping(address => bool) addrs;
 
 	address public owner; 
-	bool public flag;
+
 	address public recPromiseAddr = 0x8E0f4A1f3C0DBEA0C73684B49aE4AD02789B3EC4; 
 	address public disRrkAddr = 0x16c0b9cb893BA4392131df01e70F831A07d02687; 
 	address public saveTenanantAddr = 0x359Eab6d0F899Be438dEb2234c9389bAFc9A773d; 
@@ -95,7 +92,7 @@ contract RentBasic {
 	event BreakContract(bytes32 _houseId, address indexed sender,string _reason, uint256 uptime);
 	event WithdrawDeposit(bytes32 _houseId,address indexed sender,uint256 amount,uint256 nowTime);
 	event ApprovalBreak(address indexed sender,bytes32 _houseId,address indexed _punishAddr,uint256 _punishAmount);
-	// event RenterRaiseCrowding(address indexed _receiver, uint256 _fundingGoal, uint256 _durationInMinutes, address indexed _tokenContractAddress);
+	event AuthEvent(uint _userId, address indexed caller, bytes32 _houseId);
 	
 	constructor(address _token, address _register, address _remarkAddr, address _authAddr) {
 		owner = msg.sender;
@@ -117,16 +114,15 @@ contract RentBasic {
 		_;
 	}
 	function releaseHouse(string _houseAddr,uint8 _huxing,string _describe, string _info, uint32 _tenancy, uint256 _rent, string _hopeYou) public onlyLogin returns (bytes32) {
-		reuqire(authContract.getIsAuth(), "House is not authenticated!");
+		address houseOwer = msg.sender;
+		require(authContract.getIsAuth(houseOwer), "House is not authenticated!");
 		uint256 nowTimes = now; 
 		uint256 deadTime = nowTimes + 7 days;
-		address houseOwer = msg.sender;
 		// releaser should hold not less than 500 BLT
 		require(token.transferFrom(msg.sender, recPromiseAddr,  promiseAmount),"Release_Balance is not enough");
 		addrMoney[houseOwer] = promiseAmount;
 		bytes32 houseIds = authContract.getHouseIds(houseOwer);
-		// hsInformation = HouseInfo(2, 2, _huxing, _hopeYou, _houseAddr, houseIds, _describe, _info, houseOwer);
-		houseInfos[houseIds] = HouseInfo(2, 2, _huxing, _hopeYou, _houseAddr, houseIds, _describe, _info, houseOwer);;
+		houseInfos[houseIds] = HouseInfo(2, 2, _huxing, _houseAddr, houseIds, _describe, _info, _hopeYou,houseOwer);
 		hsReleaseInfos[houseIds] = HouseReleaseInfo(defaultState, _tenancy, _rent, nowTimes, nowTimes, deadTime, true, false);
 		RelBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
 		RelInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
@@ -228,10 +224,10 @@ contract RentBasic {
 		// If the house is in WaitRent, anyone can break the house normal
 		if 	(relInfo.state == HouseState.WaitRent)	{
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
-			flag2 = HouseState.Cance;
+			// flag2 = HouseState.Cance;
 		} else {
 			hsReleaseInfos[_houseId].state = HouseState.BreakRent;
-			flag2 = HouseState.BreakRent;
+			// flag2 = HouseState.BreakRent;
 		}
 		address sender = msg.sender;	
 		if (relInfo.state != HouseState.Release) {
@@ -276,15 +272,15 @@ contract RentBasic {
 		ApprovalBreak(sender, _houseId, _punishAddr, _punishAmount);
 		return true;
 	}
+    // 更新审核员地址，待优化
+	// function updateAuditor(address _addr) {
+	// 	require(msg.sender == owner, "check break address must update by the onwer");
+	// 	addrs[_addr] = true;
+	// }
 
-	function updateAuditor(address _addr) {
-		require(msg.sender == owner, "check break address must update by the onwer");
-		addrs[_addr] = true;
-	}
-
-	function getFlag() public returns(HouseState) {
-		return flag2;
-	}
+	// function getFlag() public returns(HouseState) {
+	// 	return flag2;
+	// }
 
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) public returns(bool) {
 		address sender = msg.sender;
@@ -305,9 +301,5 @@ contract RentBasic {
 		require(token.transferFrom(disRrkAddr,sender, remarkAmount), "Distribute fail !");
 		CommentHouse(sender, _houseId, _ratingIndex, _ramark);
 		return true;
-	}
-	// 房屋认证
-	function authenHouse() {
-
 	}
 }

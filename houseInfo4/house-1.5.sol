@@ -15,9 +15,10 @@ interface RemarkInterface {
 	function commentHouse(bytes32 _houseId, address _landlord, address _refeAddr, uint8 _ratingIndex, string _ramark) public returns(bool);
 }
 interface AuthInterface {
-	function authHouse(uint32 _idCard, uint _guid, string _owername) public returns(bytes32);
+	function contrctExist() public constant returns(bool);
+	function authHouse(uint _idCard, uint _guid, string _owername) public returns(bytes32);
 	function approveVisit(address _addr) public returns(bool);
-	function getHouseOwer() public returns(uint32, uint, string, bytes32);
+	function getHouseOwer() public returns(uint, uint, string, bytes32);
 	function getHouseIds(address _addr) public constant returns(bytes32);
 	function getIsAuth(address _addr) public constant returns(bool);
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 contract Authentication {
 	// 房屋所有权信息
 	struct AuthCtx {
-		uint32 idCard; // 业主身份证
+		uint idCard; // 业主身份证
 		uint   guid; //房屋的唯一码
 		string owername; // 业主名字
 		bytes32 houseId; // 房屋id
@@ -41,7 +41,7 @@ contract Authentication {
 		owner = msg.sender;
 	}
 	// 合约存在
-	function contrctExist() public constant returns(bool) {
+	function contrctExist() public constant returns(bool isIndeed) {
 		return true;
 	}
 	function getHouseId() public constant returns(bytes32) {
@@ -54,7 +54,7 @@ contract Authentication {
 		return authCtxs[_addr].isAuth;
 	}
 	// 认证房屋, 主要依靠房屋的唯一码（GUID）+业主身份证+业主姓名
-	function authHouse(uint32 _idCard, uint _guid, string _owername) public returns(bytes32) {
+	function authHouse(uint _idCard, uint _guid, string _owername) public returns(bytes32) {
 		require(!alAuthlist[_guid], "This house already be Authentication!");
 		address sender = msg.sender;
 		bytes32 houseIds = keccak256(abi.encodePacked(sender, _idCard, _guid, _owername));
@@ -73,7 +73,7 @@ contract Authentication {
 		return true;
 	}
 	// 查看房屋所有权
-	function getHouseOwer() public returns(uint32, uint, string, bytes32) {
+	function getHouseOwer() public returns(uint, uint, string, bytes32) {
 		address sender = msg.sender;
 		require(approvelists[sender].canInspct, "The address need be approve visit the house");
 		address houseOwner = approvelists[sender].approver;
@@ -87,7 +87,7 @@ contract Authentication {
 		return true;
 	} 
 	// 更新房屋信息
-	function updateHouse(uint32 _idCard, uint _guid, string _owername) public onlyApprove returns(bytes32) {
+	function updateHouse(uint _idCard, uint _guid, string _owername) public onlyApprove returns(bytes32) {
 		address _addr = msg.sender;
 		require(authCtxs[_addr].isAuth, "House is not authenticated!");
 		bytes32 _oldId = authCtxs[_addr].houseId;
@@ -98,7 +98,7 @@ contract Authentication {
 		return _newId;
 	}
 	// 将房屋卖给别人
-	function shiftHouse(address _newOwner, uint32 _newidCard, uint _guid, string _newowername) public returns(bytes32) {
+	function shiftHouse(address _newOwner, uint _newidCard, uint _guid, string _newowername) public returns(bytes32) {
 		address _addr = msg.sender;
 		require(authCtxs[_addr].isAuth, "House is not authenticated!");
 		bytes32 _oldId = authCtxs[_addr].houseId;
