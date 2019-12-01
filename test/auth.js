@@ -1,5 +1,5 @@
 let getContract = require("./common/contract_com.js").GetContract;
-let  filePath = "./ethererscan/get_auth.json";
+let  filePath = "./ethererscan/auth_abi.json";
 let web3 = require("./common/contract_com.js").web3;
 let Web3EthAbi = require('web3-eth-abi');
 let comCos = require("./common/globe.js");
@@ -13,6 +13,7 @@ async function initAuth() {
 
 function getIsAuth(contract, addr) {
 	return new Promise(resolve => {
+		// console.log("==get auth==", contract.methods)
   	    contract.methods.getIsAuth(addr).call().then(res => {
 			if (res) {
 				console.log("this house authenticate success");
@@ -21,7 +22,8 @@ function getIsAuth(contract, addr) {
 				resolve(false);
 			}
 		}).catch(err => {
-				console.log(err)
+				console.log("-getIsAuth: whether already auth----",err);
+				reject(err);
 		});
     });
 }

@@ -6,7 +6,10 @@ let TokenFun = require("./get_token.js");
 let HouseFun = require("./get_house.js");
 let RemarkFun = require("./get_remark.js");
 let AuthFun = require("./get_auth.js");
-let comCos = require("./common/globe.js")
+let comCos = require("./common/globe.js");
+
+// db opt
+let addrManager = require("./db/addr.js");
 
 let configuration = initParam.configuration;
 let regLists = new Map();
@@ -20,7 +23,31 @@ function initialize() {
   let contractHouse = HouseFun.initHouseFun();
   let contractRemark = RemarkFun.initRemark();
   let contractAuth = AuthFun.initAuth();
+  let conn = initParam.connDb();
   console.log("----Init-----")
+  // 
+  app.get('/bindaddr/:userid/:address', (req, res) => {
+    console.log("-----bind userid and address params----", req.params)
+    setResHeadr(res);
+    addrManager.insertUserAddress(conn, req.params.userid, req.params.address).then(ctx => {
+        console.log(ctx)
+        res.send(ctx);
+    }).catch(err => {
+        console.log("bind address err:", err)
+        res.send({status: false, err: err});
+    });
+  });
+  app.get('/getaddr/:userid', (req, res) => {
+    console.log("-----get userid and address params----", req.params)
+    setResHeadr(res);
+    addrManager.queryUserAddress(conn, req.params.userid,req.params.username, req.params.address).then(ctx => {
+        console.log(ctx)
+        res.send(ctx);
+    }).catch(err => {
+        console.log("get address error", err)
+        res.send({status: 204, err: err});
+    });
+  });
   // 注册
   app.get('/register/:address/:username/:userId/:pwd/:cardId', (req, res) => {
     console.log("-----get adddress params----", req.params)
@@ -31,7 +58,7 @@ function initialize() {
             console.log(ctx)
             res.send(ctx);
           }).catch(err => {
-            console.log(222, err)
+            console.log("register error:", err)
             res.send(err);
           });       
       }).catch(err => {
@@ -117,28 +144,28 @@ function initialize() {
       });
   });
   // 房屋认证
-  app.get('/auth/:address/:prikey/:idcard/:guid/:ownername/:userId', (req, res) => {
+  app.get('/auth/:address/:idcard/:guid/:ownername/:userid/:prikey', (req, res) => {
       console.log("-----authenticate house params----", req.params)
+      setResHeadr(res);
       contractAuth.then(con => {
-         AuthFun.authHouse(contractHouse, req.params.address, req.params.prikey, req.params.name, req.params.signlong, req.params.rental, req.params.yearrent).then(ctx => {
-           if (ctx) { // Already sign
-                res.send({
-                  "status": ctx.status,
-                  "txHash": ctx.transactionHash
-                });
+         AuthFun.authHouse(con, req.params.address, req.params.idcard, req.params.guid, req.params.ownername, req.params.userid, req.params.prikey).then(ctx => {
+           if (ctx) { 
+                res.send(ctx);
             }
          }).catch(err => {
+            res.send(err);
+         });
+      }).catch(err => {
             res.send({
               "status": false,
               "err": err
             });
-         });
       });
   });
   // House 
-  app.get('/release/:address/:prikey/:houseaddr/:huxing/:des/:info/:tenancy/:rent/:hopectx', (req, res) => {
+  app.get('/release/:address/:prikey/:houseaddr/:des/:info/:tenancy/:rent/:hopectx', (req, res) => {
       console.log("-----release house params----", req.params)
-      HouseFun.releaseHouse(contractHouse, req.params.address, req.params.prikey, req.params.houseaddr, req.params.huxing, req.params.des, req.params.info, req.params.tenancy, req.params.rent, req.params.hopectx).then(ctx => {
+      HouseFun.releaseHouse(contractHouse, req.params.address, req.params.prikey, req.params.houseaddr, 0, req.params.des, req.params.info, req.params.tenancy, req.params.rent, req.params.hopectx).then(ctx => {
        if (ctx) { // Already sign
             res.send({
               "status": ctx.status,
