@@ -153,15 +153,14 @@ contract RentBasic {
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 		return (hsReInfo.state, hsInfo.landlord);
 	}
-	function signAgreement(bytes32 _houseId,string _name, uint _signHowLong,uint _rental, uint256 _yearRent) public onlyLogin returns (HouseState) {
+	function signAgreement(bytes32 _houseId, string _name, uint _signHowLong, uint _rental) public onlyLogin returns (HouseState) {
 		HouseInfo hsInfo = houseInfos[_houseId];
 		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
 		require(hsReInfo.existed, "House is not existed");
 		require(hsReInfo.state == HouseState.WaitRent, "House State is not in wait rent");
 		uint256 nowTime = now;
 		// pack message 
-		bytes memory message = abi.encodePacked(sender, _houseId, _signHowLong, _rental, nowTime);
-		bytes32 signatrue = keccak256(message);
+		bytes32 signatrue = keccak256(abi.encodePacked(sender, _houseId, _signHowLong, _rental, nowTime));
 		address sender = msg.sender;
 		if (sender != hsInfo.landlord) {
 			require(bonds[_houseId][sender] > 0, "Require the tenant have enough bond");

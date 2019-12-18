@@ -47,7 +47,8 @@ contract UserRegister {
 	//判断用户名是否存在
 	function isExitUsername(string _username) public constant returns(bool isIndeed) {
 	    if (usernames.length == 0) return false;
-	    return (keccak256(usernames[userListStruct[_username].index]) == keccak256(_username));
+	    // return (keccak256(usernames[userListStruct[_username].index]) == keccak256(_username));
+	    return compareStr(usernames[userListStruct[_username].index], _username);
 	}
 
 	// 判断用户是否已注册
@@ -85,8 +86,8 @@ contract UserRegister {
 	}
 	// 修改用户信息
 	function updateUser(address _userAddr, string _userName, string _pwd, string _newpwd, uint _userId) public returns(bool) {
-	    UserStruct memory ustruct = userStruct[_userAddr];
-	    if ((keccak256(userStruct[_userAddr].username) == keccak256(_userName)) && (keccak256(userStruct[_userAddr].pwd) == keccak256(_pwd))) {
+	    UserStruct user = userStruct[_userAddr];
+	    if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd)) {
 	        userStruct[_userAddr].userAddress =_userAddr;
 	        userStruct[_userAddr].pwd = _newpwd;
 	        userStruct[_userAddr].userId = _userId;
@@ -97,14 +98,22 @@ contract UserRegister {
 	}
 	function login(address _userAddr, string _userName, string _pwd) public returns(bool) {
 	     require(isExitUserAddress(_userAddr), "User must be created first！");
-	     require(!isLogin(_userAddr), "User already sign in！");
-		 if ((keccak256(userStruct[_userAddr].username) == keccak256(_userName)) && (keccak256(userStruct[_userAddr].pwd) == keccak256(_pwd))) {
-		 	userLogins[_userAddr] = true;
+	     require(!isLogin(_userAddr), "User already login!");
+	     UserStruct user = userStruct[_userAddr];
+	     if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd)) {
+	     	userLogins[_userAddr] = true;
 		 	LoginEvent(_userAddr, _userName);
 		 	return true;
-		 } 
+	     }
 		 return false;
 	}
+	function compareStr(string _str1, string _str2) public returns(bool) {
+        if(keccak256(abi.encodePacked(_str1)) == keccak256(abi.encodePacked(_str2))) {
+            return true;
+        }else {
+            return false;
+        }
+    }
 	function logout(address _userAddr, string _userName, string _pwd) public returns (bool) {
 	    if (isLogin(_userAddr)) {
 	        userLogins[_userAddr] = false;

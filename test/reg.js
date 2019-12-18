@@ -89,29 +89,19 @@ function decodeLog(contract, receipt, eventName) {
 // Or, the user must login firstly.
 function login(contract, privateKey, addr, username, pwd) {
 	return new Promise((resolve, reject) => {
-		isLogin(contract, addr).then(res => {
-			console.log("isLogin res",res)
-			if (!res) {
-				const loginFun = contract.methods.login(addr, username, pwd);
-		        const logABI = loginFun.encodeABI();
-		        packSendMsg(addr, privateKey, contractAddress, logABI).then(receipt => {  
-		            console.log("Login callback: " ,receipt) 
-					let [flag, ctx] = decodeLog(contract, receipt, 'LoginEvent');
-                    if (flag) {
-                    	resolve({status:flag, data:ctx.transactionHash});
-                    } else {
-                    	resolve({status:false, err:"登录失败!"});
-                    }  
-				}).catch(err => {
-					console.log("Login fail！");
-					reject({status:false, err: "请检查余额是否不足或者是否已注册!"});
-				});
-			} else {
-				resolve({status:false, err: "该用户已登录!"});			
-			}
+		const loginFun = contract.methods.login(addr, username, pwd);
+        const logABI = loginFun.encodeABI();
+        packSendMsg(addr, privateKey, contractAddress, logABI).then(receipt => {  
+            console.log("Login callback: ", receipt) 
+			let [flag, ctx] = decodeLog(contract, receipt, 'LoginEvent');
+            if (flag) {
+            	resolve({status:flag, data:ctx.transactionHash});
+            } else {
+            	resolve({status:false, err:"登录失败!"});
+            }  
 		}).catch(err => {
-			console.log("isLogin fail!", err);
-			reject({status:false, err: err});	
+			console.log("Login fail！");
+			reject({status:false, err: "请检查余额是否不足,是否已注册，是否已登录,地址是否正确!"});
 		});
     });
 }
@@ -201,6 +191,7 @@ function packSendMsg(formAddr, privateKey, toAddr, createABI) {
 				web3.eth.accounts.signTransaction(txParams, privateKey).then(signedTx => {
 					console.log("start send the transaction")
 			 		web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(receipt => {
+			 			console.log("send sign receive", receipt);
 			 			if (receipt.status) {
 			 				console.log(receipt.transactionHash)
 			 				resolve(receipt);

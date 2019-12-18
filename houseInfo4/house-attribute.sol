@@ -65,6 +65,7 @@ contract Authentication {
 		return houseIds;
 	}
 	// 授权某人查询房屋所有权
+	// 多个房子只允许查看其中的一个时，需要传入houseId
 	function approveVisit(address _addr) public returns(bool) {
 		address sender = msg.sender;
 		require(authCtxs[sender].isAuth, "House is not exist, please authenticate the house!");
@@ -73,7 +74,7 @@ contract Authentication {
 		return true;
 	}
 	// 查看房屋所有权
-	function getHouseOwer() public returns(uint, uint, string, bytes32) {
+	function getHouseOwer(address _approver) public returns(uint, uint, string, bytes32) {
 		address sender = msg.sender;
 		require(approvelists[sender].canInspct, "The address need be approve visit the house");
 		address houseOwner = approvelists[sender].approver;
