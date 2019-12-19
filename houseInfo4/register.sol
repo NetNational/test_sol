@@ -64,7 +64,7 @@ contract UserRegister {
 
 
 	//创建用户信息
-	function createUser(address _userAddress, string _username, string _pwd, uint16 _userId, uint _cardId) public returns(bool) {
+	function createUser(address _userAddress, string _username, string _pwd, uint _userId, uint _cardId) public returns(bool) {
         require(!isAlreayReg(_userAddress, _username), "the name already occupy by some one or the address already register!"); //如果地址已存在则不允许再创建
 	    userAddresses.push(_userAddress); //地址集合push新地址
 	    userStruct[_userAddress] = UserStruct(_userAddress, _userId, _cardId, now, userAddresses.length - 1, _username, _pwd);

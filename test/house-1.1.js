@@ -161,7 +161,7 @@ function requestSign(contract, addr, privateKey, houseId, realRent) {
 	});
 }
 
-function signAgreement(contract, addr, privateKey, houseId, name, signHowLong, rental, yearRent) {
+function signAgreement(db, contract, username, houseId, houseAddr, falsify, phoneNum, idCard, signHowLong, rental, houseDeadline, addr, privateKey) {
 	return new Promise((resolve, reject) => {
 		checkLogin(addr).then(flag => {
 			if (!flag) {
@@ -171,6 +171,9 @@ function signAgreement(contract, addr, privateKey, houseId, name, signHowLong, r
 				const reqFun = contract.methods.signAgreement(houseId, name, signHowLong, rental, yearRent);
 			    const reqABI = reqFun.encodeABI();
 			    console.log("Start sign the agreement!", addr);
+			    db,  username, houseId, houseAddr, falsify, phoneNum, idCard, signHowLong, rental, houseDeadline, addr, privateKey
+			    // conn, userName, phoneNum, addr, houseAddr, rental, tenancy, txHash, houseId, falsify, houseDeadline
+	    		dbFun.insertAgreeRecord(db, username, phoneNum, addr, houseAddr, rental, txHash, houseId, falsify, houseDeadline);
 			    packSendMsg(addr, privateKey, contractAddress, reqABI).then(receipt => {
 		        	if (receipt) {
 		        		console.log("Sign success!");

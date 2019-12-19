@@ -125,7 +125,7 @@ contract RentBasic {
 		houseInfos[houseIds] = HouseInfo(2, 2, _huxing, _houseAddr, houseIds, _describe, _info, _hopeYou,houseOwer);
 		hsReleaseInfos[houseIds] = HouseReleaseInfo(defaultState, _tenancy, _rent, nowTimes, nowTimes, deadTime, true, false);
 		RelBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
-		RelInfo(houseIds, defaultState, _tenancy,_rent,nowTimes,deadTime,true);
+		RelInfo(houseIds, defaultState, _tenancy, _rent, nowTimes, deadTime, true);
 		return houseIds;
 	}
 
