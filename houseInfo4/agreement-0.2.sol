@@ -5,6 +5,7 @@ interface RentBasicInterface {
 	function signAgreement(bytes32 _houseId, address _landlord, address _leaserAddr, uint _signHowLong, uint _rental) public returns(bool);
 	function setSign(bytes32 _houseId) public returns(bool);
 	function isExist() public constant returns(bool isIndeed);
+	function setHouseState(bytes32 _houseId) public returns(bool);
 }
 
 contract TenancyAgreement {
@@ -59,7 +60,6 @@ contract TenancyAgreement {
 	}
 
 	function newAgreement(string _landlord, uint _idCard, uint _phoneNum, uint _rental, uint _signHowLong, bytes32 _houseId, string _houseAddr, uint _falsify, uint8 _houseDeadLine, string _payOne, string _houseUse)  public judgeHouse(_houseId) returns(bool) {
-		uint256 startTime = now;
 		landlordAgrees[_houseId] = LandlordAgree(_houseDeadLine, _rental, _signHowLong, _falsify, _idCard, _houseUse, _landlord, _houseAddr);
 		rules[_houseId].landlordPhone = _phoneNum;
 		rules[_houseId].landlordAddr = msg.sender;
@@ -85,6 +85,16 @@ contract TenancyAgreement {
 		require(houseInterface.signAgreement(_houseId, rules[_houseId].landlordAddr, msg.sender, landlordAgree.tenancy, landlordAgree.rent), "Sign the agree fail!");
 		LeaserSign(msg.sender, _phoneNum, _houseId);
 		return true;
+	}
+
+	function endRent(bytes32 _houseId) bool {
+		require(now > rules[_houseId].endTime, "The house is not");
+		require(houseInterface.setHouseState(_houseId), "Set house end fail!");
+		return true;
+	}
+
+	function getLeaseTime(bytes32 _houseId) public returns(uint, uint) {
+		return (rules[_houseId].startTime, rules[_houseId].endTime);
 	}
 
 	function getRules(bytes32 _houseId) public returns(uint, uint, uint, uint, address) {

@@ -75,7 +75,7 @@ contract RentBasic {
 	mapping(address => bool) addrs;
 
 	address public owner; 
-	
+
 	address public recPromiseAddr = 0x8E0f4A1f3C0DBEA0C73684B49aE4AD02789B3EC4; 
 	address public disRrkAddr = 0x16c0b9cb893BA4392131df01e70F831A07d02687; 
 	address public saveTenanantAddr = 0x359Eab6d0F899Be438dEb2234c9389bAFc9A773d; 
@@ -127,6 +127,7 @@ contract RentBasic {
 		require(token.transferFrom(msg.sender, recPromiseAddr,  promiseAmount),"Release_Balance is not enough");
 		addrMoney[houseOwer] = promiseAmount;
 		bytes32 houseIds = authContract.getHouseIds(houseOwer);
+		require(hsReleaseInfos[houseIds].state != HouseState.Renting, "House is in rent"); // 房屋租赁中，暂不能发布房源
 		houseInfos[houseIds] = HouseInfo(2, 2, _huxing, _houseAddr, houseIds, _describe, _info, _hopeYou,houseOwer);
 		hsReleaseInfos[houseIds] = HouseReleaseInfo(defaultState, _tenancy, _rent, nowTimes, nowTimes, deadTime, true, false, false);
 		RelBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
@@ -153,7 +154,6 @@ contract RentBasic {
 		require(token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
 		bonds[_houseId][msg.sender] = _realRent;
-		// releations[_houseId].tenant = msg.sender;
 		l2rMaps[hsInfo.landlord] = sender;
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 		return (hsReInfo.state, hsInfo.landlord);
@@ -216,6 +216,14 @@ contract RentBasic {
 		hsReleaseInfos[_houseId].canSign = true;
 		return true;
 	}
+	function setHouseState(bytes32 _houseId) public returns(bool) {
+		address land = houseInfos[_houseId].landlord;
+		if (tx.origin != land || tx.origin != l2rMaps[land]) {
+			return false;
+		}
+		hsReleaseInfos[_houseId].state = HouseState.EndRent;
+		return true;
+	}
 	/*
 	  @dev breakContract
 	  @des this method call should be checked by admin, then it call be called.
@@ -223,42 +231,32 @@ contract RentBasic {
 	function breakContract(bytes32 _houseId, string _reason) public onlyLogin returns(bool) {
 		HouseInfo hus = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
-		require(relInfo.existed, "House is not existed !");
 		require(relInfo.ischecked, "Apply must pass admin checked");
 		require(relInfo.state != HouseState.Cance || relInfo.state != HouseState.BreakRent,"Break Contract reqiure house not in cance or return rent status!");
 		// If the house is in WaitRent, anyone can break the house normal
-		if 	(relInfo.state == HouseState.WaitRent)	{
+		address sender = msg.sender;	
+		if (relInfo.state == HouseState.WaitRent) {
+			PunishCtx puCtx = punishRelation[_houseId];
+			uint256 amount = puCtx.punishAmount; // 被惩罚的数量
+			address puSender = recPromiseAddr; // 被惩罚的地址 
+			address sendAddr;
+			if (puSender == hus.landlord) { // 房东为被惩罚者，房东保证金扣除amount个，租客保证金加上amount个
+				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
+				bonds[_houseId][another] = bonds[_houseId][another] + amount;
+				sendAddr = recPromiseAddr;
+			} else if (puSender == l2rMaps[hus.landlord]) { // 租户是被惩罚者
+				bonds[_houseId][another] = bonds[_houseId][another] - amount;
+				addrMoney[hus.landlord] = addrMoney[hus.landlord] + amount;
+				sendAddr = saveTenanantAddr;
+			}
+			require(token.transferFrom(sendAddr, punishAddr, amount), "transfer fail!");
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
-			// flag2 = HouseState.Cance;
 		} else {
 			hsReleaseInfos[_houseId].state = HouseState.BreakRent;
-			// flag2 = HouseState.BreakRent;
-		}
-		address sender = msg.sender;	
-		if (relInfo.state != HouseState.Release) {
-			PunishCtx puCtx = punishRelation[_houseId];
-			uint256 amount = puCtx.punishAmount;
-			address puSender = recPromiseAddr;
-			// 如果房东是被惩罚的地址并且是房东调用时，则惩罚房东
-			address another = l2rMaps[sender];
-			if (sender == puCtx.punishAddr && sender == hus.landlord) {		
-				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
-			} else if (sender == puCtx.punishAddr && sender != hus.landlord) { // 惩罚租客
-				puSender = saveTenanantAddr;
-			    bonds[_houseId][another] = bonds[_houseId][another] - amount;
-			} else if (sender == hus.landlord) { // 若房东不是被惩罚者时候，调用此方法则惩罚租客
-				puSender = saveTenanantAddr;
-			    bonds[_houseId][another] = bonds[_houseId][another] - amount;
-			} else { // 惩罚房东
-				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
-			}
-			require(token.transferFrom(puSender, punishAddr, amount),"transfer fail!");
-			hsReleaseInfos[_houseId].state = HouseState.Cance;
 		}
 		// Update releaseHouse information
-		uint256 nowTime = now;
-		hsReleaseInfos[_houseId].updateTime = nowTime;	
-		BreakContract(_houseId, sender, _reason, nowTime);
+		hsReleaseInfos[_houseId].updateTime = now;	
+		BreakContract(_houseId, sender, _reason, now);
 		return true;
 	}
 	/*
@@ -271,6 +269,7 @@ contract RentBasic {
         	return false;
         }
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
+		require(relInfo.existed && _punishAmount >= 0, "House is not existed !");
 		hsReleaseInfos[_houseId].ischecked = true;
 		punishRelation[_houseId].punishAmount = _punishAmount;
 		punishRelation[_houseId].punishAddr = _punishAddr;
@@ -281,10 +280,6 @@ contract RentBasic {
 	// function updateAuditor(address _addr) {
 	// 	require(msg.sender == owner, "check break address must update by the onwer");
 	// 	addrs[_addr] = true;
-	// }
-
-	// function getFlag() public returns(HouseState) {
-	// 	return flag2;
 	// }
 
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) public returns(bool) {
