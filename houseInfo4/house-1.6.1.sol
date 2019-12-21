@@ -242,10 +242,10 @@ contract RentBasic {
 			address sendAddr;
 			if (puSender == hus.landlord) { // 房东为被惩罚者，房东保证金扣除amount个，租客保证金加上amount个
 				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
-				bonds[_houseId][another] = bonds[_houseId][another] + amount;
+				bonds[_houseId][l2rMaps[hus.landlord]] = bonds[_houseId][l2rMaps[hus.landlord]] + amount;
 				sendAddr = recPromiseAddr;
 			} else if (puSender == l2rMaps[hus.landlord]) { // 租户是被惩罚者
-				bonds[_houseId][another] = bonds[_houseId][another] - amount;
+				bonds[_houseId][puSender] = bonds[_houseId][puSender] - amount;
 				addrMoney[hus.landlord] = addrMoney[hus.landlord] + amount;
 				sendAddr = saveTenanantAddr;
 			}

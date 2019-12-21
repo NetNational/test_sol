@@ -87,7 +87,7 @@ contract TenancyAgreement {
 		return true;
 	}
 
-	function endRent(bytes32 _houseId) bool {
+	function endRent(bytes32 _houseId) public returns(bool) {
 		require(now > rules[_houseId].endTime, "The house is not");
 		require(houseInterface.setHouseState(_houseId), "Set house end fail!");
 		return true;
