@@ -253,6 +253,17 @@ function initialize() {
         });
       });
   });
+  // 获取甲方已签订的协议
+  app.get('/getagree/:houseid', (req, res) => {
+      console.log("-----release house params----", req.params)
+      setResHeadr(res);
+      houseManager.queryReleaseInfo(conn, req.params.houseid).then(ctx => {
+          res.send(ctx);
+      }).catch(err => {
+          console.log("get agree error", err)
+          res.send({status: false, err: err});
+      });
+  });
   // 毁约
   app.get('/break/:address/:prikey/:houseid/:reason', (req, res) => {
       console.log("-----sign house params----", req.params)

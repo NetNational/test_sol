@@ -149,7 +149,7 @@ function querySignInfo(conn, addr, houseId) {
 
 // 更新房屋签订合同信息
 // userName, phoneNum, addr, houseAddr, rental, tenacy, txHash, houseId, falsify, houseDeadline
-function updateAgreeRecord(conn, leaserId, leaserAddr, houseUse, renewalMonth, addr) {
+function updateAgreeRecord(conn, leaserId, leaserAddr, houseId, renewalMonth, breakMonth) {
 	console.log("-------update Agree Record---------", leaserId, leaserAddr);
 	return new Promise((resolve, reject) => {
 		conn.then(con => {
