@@ -209,14 +209,14 @@ contract RentBasic {
 		}
 		return false;
 	}	
-	function setSign(bytes32 _houseId) public returns(bool) {
+	function setSign(bytes32 _houseId)  returns(bool) {
 		if (tx.origin != houseInfos[_houseId].landlord) {
 			return false;
 		}
 		hsReleaseInfos[_houseId].canSign = true;
 		return true;
 	}
-	function setHouseState(bytes32 _houseId) public returns(bool) {
+	function setHouseState(bytes32 _houseId) returns(bool) {
 		address land = houseInfos[_houseId].landlord;
 		if (tx.origin != land || tx.origin != l2rMaps[land]) {
 			return false;
@@ -277,10 +277,11 @@ contract RentBasic {
 		return true;
 	}
     // 更新审核员地址，待优化
-	// function updateAuditor(address _addr) {
-	// 	require(msg.sender == owner, "check break address must update by the onwer");
-	// 	addrs[_addr] = true;
-	// }
+	function updateAuditor(address _addr, bool _flag) public returns(bool) {
+		require(msg.sender == owner, "check break address must update by the onwer");
+		addrs[_addr] = _flag;
+		return true;
+	}
 
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) public returns(bool) {
 		address sender = msg.sender;
