@@ -1,5 +1,5 @@
 pragma solidity ^0.4.24;
-import './agreement.sol';
+// import './agreement.sol';
 
 interface TokenInterface {
 	function transfer(address _to, uint256 _value) external  returns (bool success);
@@ -58,7 +58,7 @@ contract RentBasic {
 		address punishAddr; // 惩罚的地址
 	}
 	TokenInterface token;
-	TenancyAgreement tenancyContract;
+	// TenancyAgreement tenancyContract;
 	RegisterInterface userRegister;
 	RemarkInterface remarkContract;
 	AuthInterface authContract;
@@ -172,12 +172,11 @@ contract RentBasic {
 	function withdraw(bytes32 _houseId, uint amount) onlyLogin public returns(bool) {
 	 	HouseInfo hs = houseInfos[_houseId];
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
-	 	require(reInfo.existed, "Not find the house!");
+	 	require(reInfo.existed && reInfo.ischecked, "Not find the house or it has not checked!");
 	 	require(reInfo.state == HouseState.EndRent || reInfo.state == HouseState.Cance, "House rent is not finished, if you want break the rent, please break contract first!");
-	 	require(amount > 0 , "Amount must less than 0 !");
+	 	require(amount > 0 && addrMoney[msg.sender] >= amount, "Amount must greater than 0 and less than promise amount!");
 	 	address sender = msg.sender;
 	 	if (sender == hs.landlord) {
-	 		require(addrMoney[msg.sender] >= amount);
 	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
 	 		require(token.transferFrom(recPromiseAddr, sender, amount), "Withdraw error, from recPromiseAddr to landlord");
 	 	} else {
@@ -186,9 +185,8 @@ contract RentBasic {
 	 		bonds[_houseId][sender] = bonds[_houseId][sender] - amount;
 		 	require(token.transferFrom(saveTenanantAddr, sender, amount), "Transfer fail, from saveTenanantAddr to leaser");
 	 	}
-	 	uint256 nowTime = now;
-	 	hsReleaseInfos[_houseId].updateTime = nowTime;
-	 	WithdrawDeposit(_houseId, sender, amount, nowTime);
+	 	hsReleaseInfos[_houseId].updateTime = now;
+	 	WithdrawDeposit(_houseId, sender, amount, now);
 	 	return true;
 	 }
 	
@@ -222,6 +220,7 @@ contract RentBasic {
 			return false;
 		}
 		hsReleaseInfos[_houseId].state = HouseState.EndRent;
+		hsReleaseInfos[_houseId].ischecked = true;
 		return true;
 	}
 	/*
@@ -231,28 +230,14 @@ contract RentBasic {
 	function breakContract(bytes32 _houseId, string _reason) public onlyLogin returns(bool) {
 		HouseInfo hus = houseInfos[_houseId];
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
-		require(relInfo.ischecked, "Apply must pass admin checked");
 		require(relInfo.state != HouseState.Cance || relInfo.state != HouseState.BreakRent,"Break Contract reqiure house not in cance or return rent status!");
 		// If the house is in WaitRent, anyone can break the house normal
 		address sender = msg.sender;	
 		if (relInfo.state == HouseState.WaitRent) {
-			PunishCtx puCtx = punishRelation[_houseId];
-			uint256 amount = puCtx.punishAmount; // 被惩罚的数量
-			address puSender = recPromiseAddr; // 被惩罚的地址 
-			address sendAddr;
-			if (puSender == hus.landlord) { // 房东为被惩罚者，房东保证金扣除amount个，租客保证金加上amount个
-				addrMoney[hus.landlord] = addrMoney[hus.landlord] - amount;
-				bonds[_houseId][l2rMaps[hus.landlord]] = bonds[_houseId][l2rMaps[hus.landlord]] + amount;
-				sendAddr = recPromiseAddr;
-			} else if (puSender == l2rMaps[hus.landlord]) { // 租户是被惩罚者
-				bonds[_houseId][puSender] = bonds[_houseId][puSender] - amount;
-				addrMoney[hus.landlord] = addrMoney[hus.landlord] + amount;
-				sendAddr = saveTenanantAddr;
-			}
-			require(token.transferFrom(sendAddr, punishAddr, amount), "transfer fail!");
 			hsReleaseInfos[_houseId].state = HouseState.Cance;
 		} else {
 			hsReleaseInfos[_houseId].state = HouseState.BreakRent;
+			hsReleaseInfos[_houseId].ischecked = true;
 		}
 		// Update releaseHouse information
 		hsReleaseInfos[_houseId].updateTime = now;	
@@ -270,9 +255,20 @@ contract RentBasic {
         }
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
 		require(relInfo.existed && _punishAmount >= 0, "House is not existed !");
+		require(relInfo.state == HouseState.BreakRent, "House is not in break");
 		hsReleaseInfos[_houseId].ischecked = true;
-		punishRelation[_houseId].punishAmount = _punishAmount;
-		punishRelation[_houseId].punishAddr = _punishAddr;
+		HouseInfo hus = houseInfos[_houseId];
+		address sendAddr;
+		if (_punishAddr == hus.landlord) { // 房东为被惩罚者，房东保证金扣除amount个，租客保证金加上amount个
+			addrMoney[hus.landlord] = addrMoney[hus.landlord] - _punishAmount;
+			bonds[_houseId][l2rMaps[hus.landlord]] = bonds[_houseId][l2rMaps[hus.landlord]] + _punishAmount;
+			sendAddr = recPromiseAddr;
+		} else if (_punishAddr == l2rMaps[hus.landlord]) { // 租户是被惩罚者
+			bonds[_houseId][_punishAddr] = bonds[_houseId][_punishAddr] - _punishAmount;
+			addrMoney[hus.landlord] = addrMoney[hus.landlord] + _punishAmount;
+			sendAddr = saveTenanantAddr;
+		}
+		require(token.transferFrom(sendAddr, punishAddr, _punishAmount), "transfer fail, please approve the transfer from the sendAddr to punishAddr!");
 		ApprovalBreak(sender, _houseId, _punishAddr, _punishAmount);
 		return true;
 	}
