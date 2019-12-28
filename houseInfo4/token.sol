@@ -158,7 +158,7 @@ contract RentToken {
         public returns (bool success) {
         require((_amount > 0) && (allowed[msg.sender][_spender]+_amount <= balances[msg.sender]));
         allowed[msg.sender][_spender] = allowed[msg.sender][_spender].Add(_amount);
-         Approval(msg.sender, _spender, _amount);
+        Approval(msg.sender, _spender, _amount);
         return true;
     }
 

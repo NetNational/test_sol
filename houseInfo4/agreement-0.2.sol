@@ -39,6 +39,8 @@ contract TenancyAgreement {
 		address  leaserAddr; // 租户地址
 	}
 	address owner;
+	uint256 public time1;
+	uint256 public time2;
 	RentBasicInterface houseInterface;
 	mapping(bytes32 => LandlordAgree) public landlordAgrees;
 	mapping(bytes32 => Rules) public rules;
@@ -46,7 +48,7 @@ contract TenancyAgreement {
 
 	event LandLordSign(address indexed _sender, uint _phoneNum, bytes32 _houseId);
 	event LeaserSign(address indexed sender, uint _phoneNum, bytes32 _houseId);
-	
+	event EndRent(address indexed _sender, bytes32 _houseId);
 	modifier judgeHouse(bytes32 _houseId) {
 		// 校验房屋是否存在
 		require(houseInterface.houseExist(_houseId), "The house is not exit or the house state is not in waiting rent!");
@@ -73,13 +75,11 @@ contract TenancyAgreement {
         return true;
     }
 
-    function tenantSign(bytes32 _houseId, string _tenant, uint _phoneNum, uint256 _cardId, uint _renewalMonth, uint _breakMonth) public judgeHouse(_houseId) returns(bool) {
-		uint256 startTime = now;
+    function tenantSign(bytes32 _houseId, string _tenant, uint _phoneNum, uint256 _cardId, uint _renewalMonth, uint _breakMonth, uint startTime, uint endTime) public judgeHouse(_houseId) returns(bool) {
 		LandlordAgree landlordAgree = landlordAgrees[_houseId];
-		uint256 end  = startTime + (landlordAgree.tenancy * 30) * 1 days;
 		leaserAgrees[_houseId] = LeaserAgree(_cardId, _renewalMonth, _breakMonth, _tenant, msg.sender);
 		rules[_houseId].startTime = startTime;
-		rules[_houseId].endTime = end;
+		rules[_houseId].endTime = endTime;
 		rules[_houseId].leaserPhone  = _phoneNum;
 		rules[_houseId].isSign  = true;
 		require(houseInterface.signAgreement(_houseId, rules[_houseId].landlordAddr, msg.sender, landlordAgree.tenancy, landlordAgree.rent), "Sign the agree fail!");
@@ -87,9 +87,24 @@ contract TenancyAgreement {
 		return true;
 	}
 
+ //    function tenantSign(bytes32 _houseId, string _tenant, uint _phoneNum, uint256 _cardId, uint _renewalMonth, uint _breakMonth) public judgeHouse(_houseId) returns(bool) {
+	// 	uint256 startTime = now;
+	// 	LandlordAgree landlordAgree = landlordAgrees[_houseId];
+	// 	uint256 end  = startTime + (landlordAgree.tenancy * 30) * 1 days;
+	// 	leaserAgrees[_houseId] = LeaserAgree(_cardId, _renewalMonth, _breakMonth, _tenant, msg.sender);
+	// 	rules[_houseId].startTime = startTime;
+	// 	rules[_houseId].endTime = end;
+	// 	rules[_houseId].leaserPhone  = _phoneNum;
+	// 	rules[_houseId].isSign  = true;
+	// 	require(houseInterface.signAgreement(_houseId, rules[_houseId].landlordAddr, msg.sender, landlordAgree.tenancy, landlordAgree.rent), "Sign the agree fail!");
+	// 	LeaserSign(msg.sender, _phoneNum, _houseId);
+	// 	return true;
+	// }
+
 	function endRent(bytes32 _houseId) public returns(bool) {
-		require(now > rules[_houseId].endTime, "The house is still in renting!");
+		require(now >= rules[_houseId].endTime, "The house is still in renting!");
 		require(houseInterface.setHouseState(_houseId), "Set house end fail!");
+		EndRent(msg.sender, _houseId);
 		return true;
 	}
 
