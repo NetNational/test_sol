@@ -1,7 +1,9 @@
 let getContract = require("./common/contract_com.js").GetContract;
-let  filePath = "./ethererscan/token_abi.json";
-let contractAddress = "0xfed21ab2993faa0e0b2ab92752428d96370d4889";
+let filePath = "./ethererscan/token_abi.json";
 let web3 = require("./common/contract_com.js").web3;
+let comVar = require("./common/globe.js");
+let contractAddress = comVar.tokenConAddr;
+let Web3EthAbi = require('web3-eth-abi');
 let nonceMap = new Map();
 
 async function initToken() {
@@ -9,79 +11,137 @@ async function initToken() {
   return contract;
 }
 
+
 function getBalance(contract, addr) {
   return new Promise((resolve, reject) => {
+    console.log("enter into get balance")
     contract.methods.balanceOf(addr).call().then(res => {
-      // console.log(res);
-      resolve(res)
+      console.log("get the balance",res);
+      resolve({status: true, data: res});
     }).catch(err => {
-      console.log(err);
+      console.log("get bal error:",err);
+      reject({status: false, err: err});
     });
   });
 }
+
+function getAllBalance(contract, addr) {
+   return new Promise((resolve, reject) => {
+      contract.methods.balanceOf(addr).call().then(res => {
+        console.log("get the balance",res);
+        web3.eth.getBalance(addr).then(bal => {
+            let tokenBal, ethBal;
+            if (res && bal) {
+               tokenBal = parseFloat(res.slice(0, -6))/100;
+               ethBal = parseFloat(bal.slice(0, -10))/100000000;
+            }
+            console.log(res, 11, bal, 11, tokenBal, ethBal)
+            resolve({status: true, data: {"ethbal": ethBal, "tokenbal": tokenBal}});
+        }).catch(err => {
+          console.log("get bal error:",err);
+          reject({status: false, err: err});
+        });
+      }).catch(err => {
+        console.log("get bal error:",err);
+        reject({status: false, err: err});
+      });
+   });
+}
+
 /**
 * des: initAddr: 若是普通转账则与from相同；若是授权后的转账，则与from不同 
 */
-initToken().then(con => {
-   let from = "0x16c0b9cb893BA4392131df01e70F831A07d02687";
-
-   let addr3 = "0x5b0ccb1c93064Eb8Fd695a60497240efd94A44ed";
-   let privKey3 = "0x502D29356356AE02B7E23ECC851CCA0F21FE9CDADEF1FBAB158EB82611F27229";
-   
-   transfer(con, addr3, privKey3, from, addr3, 200000000).then((receipt, reject) => {
-     console.log(receipt.transactionHash)
-   });
-});
-
-function transfer(contract, initAddr, privateKey, from, to, amount) {
+//  // from: 转出账户， to: 转入账户， spender: 手续费支付方
+function transferToken(contract, from, to, amount, spender, privateKey) {
   return new Promise((resolve, reject) => {
-      // console.log(contract.methods)
+      amount = amount * 100000000;
       const transFun = contract.methods.transferFrom(from, to, amount);
       const transABI = transFun.encodeABI();
+      packSendMsg(spender, privateKey, contractAddress, transABI).then(receipt => {
+          if (receipt) {
+            console.log("Transfer success!");
+            let [flag, ctx, logRes] = decodeLog(contract, receipt, 'Transfer');
+                if (flag) {
+                  console.log("Transfer receive: ", ctx)
+                  resolve({status:flag, data: ctx.transactionHash});
+                } else {
+                  resolve({status:false, err:"转账失败!"});
+                }
+          } 
+      }).catch(err => {
+          console.log("transfer token error!", err);
+          reject({status: false, err: err});
+      });     
+  });
+}
+
+function transferEth(contract, to, amount, from, privateKey) {
+  return new Promise((resolve, reject) => {
       let gas, nonce;
       gas = 20000000000;
-      web3.eth.getTransactionCount(initAddr, 'pending').then(_nonce => {
-          if (nonceMap.has(initAddr) && (nonceMap[initAddr] == _nonce)) {
+      web3.eth.getTransactionCount(from, 'pending').then(_nonce => {
+          if (nonceMap.has(from) && (nonceMap[from] == _nonce)) {
              _nonce += 1
           }
-          nonceMap.set(initAddr, _nonce);
+          nonceMap.set(from, _nonce);
           nonce = _nonce.toString(16);
           const txParams = {
               gasPrice: gas,
               gasLimit: 210000,
-              to: contractAddress,
-              data: transABI,
-              from: initAddr,
+              to: to,
+              from: from,
               chainId: 3,
-              // value: web3.utils.toHex(amount),
+              value: web3.utils.toWei(amount+'', 'ether'),
               nonce: '0x' + nonce
           }
           web3.eth.accounts.signTransaction(txParams, privateKey).then(signedTx => {
               web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(receipt => {
-                // console.log(receipt)
                 if (receipt.status) {
-                  resolve(receipt);
-                    // console.log(receipt.transactionHash)
+                  console.log("transfer success!");
+                  resolve({status: true, data: receipt});
                 } else {
-                  reject(receipt);
+                  resolve({status: false, err: "未获取正确的返回!"});
                 }
               }).catch(err => {
-                console.log(err);
+                console.log("Send Error", err);
+                reject({status: false, err: err});
               });
           });  
       });      
   });
 }
 // Call one for every contract
-function approveTransfer(contract, from, privateKey,spender, amount) {
+function transferApprove(contract, spender, amount, from, privateKey) {
   return new Promise((resolve, reject) => {
-      // console.log(contract.methods)
+      console.log("start approve transfer", spender);
+      amount = amount*100000000;
       const transFun = contract.methods.approve(spender, amount);
       const transABI = transFun.encodeABI();
-      packSendMsg(from, privateKey, spender, transABI).then((res, rej)=> {
-         resolve(res);
-      });      
+       packSendMsg(from, privateKey, spender, transABI).then(receipt => {
+          if (receipt) {
+                console.log("Approve success!", receipt);
+                resolve({status:true, data: receipt.transactionHash});
+          } 
+      }).catch(err => {
+          console.log("approve transfer token error!", err);
+          reject({status: false, err: err});
+      });   
   });
+}
+
+function decodeLog(contract, receipt, eventName) {
+  const eventJsonInterface = contract._jsonInterface.find(
+      o => (o.name === eventName) && o.type === 'event');
+    if (JSON.stringify(receipt.logs) != '[]') {
+        const log = receipt.logs.find(
+          l => l.topics.includes(eventJsonInterface.signature)
+        );
+        let decodeLog = Web3EthAbi.decodeLog(eventJsonInterface.inputs, log.data, log.topics.slice(1));
+        console.log("==decode log==",decodeLog)
+        return [true, receipt, decodeLog];
+    } else {
+      return [false, "Cannt find logs", {}];
+    }
 }
 
 function packSendMsg(formAddr, privateKey, toAddr, createABI) {
@@ -104,17 +164,16 @@ function packSendMsg(formAddr, privateKey, toAddr, createABI) {
             nonce: '0x' + nonce
         }
         web3.eth.accounts.signTransaction(txParams, privateKey).then(signedTx => {
-          web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(receipt => {
-            if (receipt.status) {
-              // console.log(receipt.transactionHash)
-              resolve(receipt);
-            } else {
-              console.log("this user already regiester");
-              reject("this user already regiester");
-            }
-          }).catch(err => {
-            reject(err);
-          });
+            web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(receipt => {
+                if (receipt.status) {
+                   resolve(receipt);
+                } else {
+                  console.log("this user already regiester");
+                  reject("send sign transaction error");
+                }
+            }).catch(err => {
+                reject(err);
+            });
         });
       });
     });   
@@ -123,6 +182,8 @@ function packSendMsg(formAddr, privateKey, toAddr, createABI) {
 module.exports = {
     initToken,
     getBalance,
-    transfer,
-    approveTransfer
+    transferToken,
+    transferApprove,
+    getAllBalance,
+    transferEth
 }

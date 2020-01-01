@@ -1,479 +1,386 @@
-let http = require('http');
-const express = require('express');
-let initParam = require("./init.js");
-let RegisterFun = require("./get_register.js");
-let TokenFun = require("./get_token.js");
-let HouseFun = require("./get_house.js");
-let RemarkFun = require("./get_remark.js");
-let AuthFun = require("./get_auth.js");
-let comCos = require("./common/globe.js");
+let getContract = require("./common/contract_com.js").GetContract;
+let filePath = "./ethererscan/house_abi.json";
+let web3 = require("./common/contract_com.js").web3;
+let Web3EthAbi = require('web3-eth-abi');
+let comVar = require("./common/globe.js");
+let dbFun = require("./db/house.js");
+let dbAgreeFun = require("./db/agree.js");
+let dbCommentFun = require("./db/comment.js");
+let nonceMap = new Map();
+let RegisterFun = require("./get_register");
+let TokenFun = require("./get_token");
+let contractAddress = comVar.houseConAddr;
+async function initHouseFun() {
+  let contract = await getContract(filePath, contractAddress);
+  return contract;
+}
 
-// db opt
-let addrManager = require("./db/addr.js");
-let houseManager = require("./db/house.js");
-let authManager = require("./db/auth.js");
-
-let configuration = initParam.configuration;
-let regLists = new Map();
-initialize()
-function initialize() {
+function checkLogin(addr) {
+  // 必须先登录
   return new Promise((resolve, reject) => {
-  const app = express();
-  server = http.createServer(app);
-  let contractToken = TokenFun.initToken();
-  let contractReg = RegisterFun.initReg();
-  let contractHouse = HouseFun.initHouseFun();
-  let contractRemark = RemarkFun.initRemark();
-  let contractAuth = AuthFun.initAuth();
-  let conn = initParam.connDb();
-  console.log("----Init-----")
-  // 
-  app.get('/bindaddr/:userid/:address', (req, res) => {
-    console.log("-----bind userid and address params----", req.params)
-    setResHeadr(res);
-    addrManager.insertUserAddress(conn, req.params.userid, req.params.address).then(ctx => {
-        console.log(ctx)
-        res.send(ctx);
+    RegisterFun.initReg().then(con => {
+      RegisterFun.isLogin(con, addr).then(res => {
+        resolve(res);
+      }).catch(err1 => {
+        console.log("checkLogin error", err1);
+        reject(err1)
+      });
     }).catch(err => {
-        // console.log("bind address err:", err)
-        res.send({status: false, err: err});
+      console.log("Register init fail", err);
+      reject(err);
     });
   });
-  app.get('/getaddr/:userid', (req, res) => {
-    console.log("-----get userid and address params----", req.params)
-    setResHeadr(res);
-    addrManager.queryUserAddress(conn, req.params.userid,req.params.username, req.params.address).then(ctx => {
-        console.log(ctx)
-        res.send(ctx);
-    }).catch(err => {
-        // console.log("get address error", err)
-        res.send({status: 204, err: err});
-    });
-  });
-  // 获取用户链上状态
-  app.get('/getstatus/:addr', (req, res) => {
-    console.log("-----get userid and address params----", req.params)
-    setResHeadr(res);
-    addrManager.queryUserStatus(conn, req.params.addr).then(ctx => {
-        console.log(ctx)
-        res.send(ctx);
-    }).catch(err => {
-        console.log("get status error", err)
-        res.send({status: 204, err: err});
-    });
-  });
-  // 注册
-  app.get('/register/:address/:username/:userId/:pwd/:cardId', (req, res) => {
-    console.log("-----get adddress params----", req.params)
-    setResHeadr(res);
-    contractReg.then(con => {
-        console.log("reg contract");
-          RegisterFun.createUser(con, req.params.address,req.params.username, req.params.userId, req.params.pwd, req.params.cardId).then(ctx => {
-            console.log(ctx)
-            res.send(ctx);
-          }).catch(err => {
-            console.log("register error:", err)
-            res.send(err);
-          });       
+}
+
+function releaseHouse(db, contract, contractToken, addr, privateKey, houseAddr, huxing, des, info, tenancy, rent, hopeCtx) {
+  return new Promise((resolve, reject) => {
+    console.log("release===")
+    contractToken.then(con => {
+      console.log(addr.length, addr);
+      TokenFun.getBalance(con, addr).then(bal => {
+        console.log("bal", bal, typeof(bal), bal.length)
+        let n = bal.length;
+        let newBal;
+        if (n > 6) {
+           let temp = bal.slice(0, -6);
+           let newBal = parseFloat(temp)/100;
+           console.log("After parese value", temp, newBal);
+           if (newBal < comVar.promiseAmount) {
+              resolve({status: false, err: "RentToken数量不能满足保证金要求!余额为："+newBal})
+           } else {
+              console.log("---start release house---")
+            checkLogin(addr).then(flag => {
+            if (!flag) {
+              console.log("Please login in first");
+              resolve({status: false, err: "该用户未登录，请先登录!"});
+            } else { // TokenFun
+              const releaseFun = contract.methods.releaseHouse(houseAddr, huxing, des, info, tenancy, rent, hopeCtx);
+                const relABI = releaseFun.encodeABI();
+                packSendMsg(addr, privateKey, contractAddress, relABI).then(receipt => {
+                    if (receipt) {
+                      console.log("Release house success!");
+                      let tx_hash="", house_hash="";
+                      let [flag, ctx, logRes] = decodeLog(contract, receipt, 'RelBasic');
+                            if (flag) {
+                              console.log("release house receive: ", ctx, logRes);
+                              tx_hash = ctx.transactionHash;
+                              house_hash = logRes.houseHash;
+                              console.log("===house_hash==", logRes, house_hash)
+                              resolve({status:true, data:{trans: ctx.transactionHash, houseId: logRes.houseHash}});
+                            } else {
+                              resolve({status:false, err:"发布房源失败!"});
+                            } 
+                            const house_state = comVar.houseState.Release;
+                            console.log("house state:", house_state, house_hash);
+                            dbFun.insertRealseInfo(db, "", addr, houseAddr, huxing, des, info, tenancy, rent, hopeCtx, house_state, tx_hash, house_hash);
+                    }
+              }).catch(err => {
+                console.log("Release fail!", err);
+                reject({status:false, err:"请检查房屋是否已认证，余额是否满足保证金最少要求！"});
+              });
+            }
+          }).catch(err1 => {
+                 console.log("Create user error", err1);
+                 reject({status:false, err:"网络繁忙，请稍后重试!"});
+              });
+           }
+        } else {
+          resolve({status: false, err: "RentToken余额不能满足发布房屋保证金的要求！"})
+        }
       }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
+        console.log("get balance parse error", err);
+        reject({status: false, err: err});
+      })
+    });
+  });
+}
+
+function requestSign(db, contract, addr, privateKey, houseId, realRent) {
+  return new Promise((resolve, reject) => {
+    // Judge whether the user has logged in
+    checkLogin(addr).then(flag => {
+      if (!flag) {
+        console.log("Please login in first");
+        resolve({status: 203, err: "请先登录！"});
+      } else {
+        getHouseRelaseInfo(contract, houseId).then(info => {
+          console.log("get house release", info)
+          if (info && info.status && info.data && parseInt(info.data[0]) != 0) {
+            console.log("get====")
+            resolve({status: 204, err: "该房屋已被预定！"});
+            if (info.data) {
+              let state = parseInt(info.data[0]);
+              console.log("house state", state);
+                dbFun.updateReleaseInfo(db, "", addr, houseId, state);
+            }
+          } else {
+            console.log("=request sign=", houseId, realRent);
+            const reqFun = contract.methods.requestSign(houseId, realRent);
+              const reqABI = reqFun.encodeABI();
+              console.log("Start request!", addr);
+              packSendMsg(addr, privateKey, contractAddress, reqABI).then(receipt => {
+                  if (receipt) {
+                    console.log("Request the house success!");
+                    let [flag, ctx, logRes] = decodeLog(contract, receipt, 'RequestSign');
+                          if (flag) {
+                            console.log("request house receive: ", ctx)
+                            resolve({status:200, data: ctx.transactionHash});
+                            let house_state = comVar.houseState.WaitRent; 
+                            dbFun.updateReleaseInfo(db, "", addr, houseId, house_state);
+                          } else {
+                            resolve({status:205, err:"网络异常，未获得链上数据!"});
+                          } 
+                  } else {
+                    console.log("Release house fail!");
+                    resolve({status:206, err:"请求签订房源失败!"});
+                  }
+            }).catch(err => {
+              console.log("Release fail!", err);
+              reject({status: 207, err: "请检查该房屋是否已经被预定，账户余额是否充足!"});
+            });
+          }
         });
-      });
+      }     
+    });   
   });
-  // 登录
-  app.get('/login/:address/:username/:pwd/:prikey', (req, res) => {
-    console.log("-----login params----", req.params)
-    setResHeadr(res);
-    contractReg.then(con => {
-      console.time("login");
-      console.log("start login contract");
-      RegisterFun.login(conn, con, req.params.prikey, req.params.address,
-          req.params.username, req.params.pwd).then(ctx => {
-        res.send(ctx);
-      }).catch(err => {
-          console.log("Login callback", err);
-          res.send(err);
-      });
-      console.timeEnd("login")
+}
+
+function withdraw(contract, addr, privateKey, houseId, amount) {
+  return new Promise((resolve, reject) => {
+    console.log("==withdraw==", addr, houseId);
+    const withFun = contract.methods.withdraw(houseId, amount);
+      const withABI = withFun.encodeABI();
+      packSendMsg(addr, privateKey, contractAddress, withABI).then(receipt => {
+          if (receipt) {
+            console.log("Withdraw the coin success!");
+            let [flag, ctx, logRes] = decodeLog(contract, receipt, 'WithdrawDeposit');
+                if (flag) {
+                  console.log("withdraw the promise receive: ", ctx)
+                  resolve({status:flag, data: ctx.transactionHash});
+                } else {
+                  resolve({status:false, err:"退款失败!"});
+                }
+          } 
     }).catch(err => {
-      // console.log("login err", err);
-      res.send({
-        "status": false,
-        "err": err
-      });
+      console.log("Withdraw occure error!", err);
+      reject({stats: false, err: err});
     });
   });
-  app.get('/logout/:address/:username/:pwd/:prikey', (req, res) => {
-    console.log("-----get adddress params----", req.params)
-    contractReg.then(con => {
-      RegisterFun.logout(con, req.params.prikey, req.params.address,req.params.username, req.username.pwd).then(ctx => {
-         res.send(ctx);
-      });
-    }).catch(err => {
-      res.send({
-        "status": false,
-        "err": err
-      });
-    });
-  });
-  //Token transfer
-  app.get('/transfer/:address/:to/:amount/:prikey', (req, res) => {
-    console.log("-----get transfer params----", req.params)
-    TokenFun.transfer(contractToken, req.params.address, req.params.prikey, req.params.address, req.params.to, req.params.amount).then(ctx => {
-        res.send(ctx);
-    }).catch(err => {
-      res.send({
-        "status": false,
-        "err": err
-      });
-    });
-  });
-  //Token transfer
-  app.get('/transferEth/:address/:to/:amount/:prikey', (req, res) => {
-      console.log("-----get transfer eth params----", req.params)
-      TokenFun.transfer(contractToken, req.params.prikey, req.params.address, req.params.to, req.params.amount).then(ctx => {
-          res.send(ctx);
-      }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
+}
+
+function breakContract(db, contract, addr, privateKey, houseId, reason) {
+  return new Promise((resolve, reject) => {
+        checkLogin(addr).then(flag => {
+          if (!flag) {
+              console.log("Please login in first");
+              resolve({status:203, err: "请先登录！"});
+          } else {
+              getHouseRelaseInfo(contract, houseId).then(info => {
+                if (info && info.status && info.data && parseInt(info.data[0]) != 1) {
+                    resolve({status:207, err:"已申请毁约!"});
+                    dbFun.updateReleaseInfo(db, "", addr, houseId, parseInt(info.data[0]));
+                    dbAgreeFun.updateAgreeState(db, houseId, parseInt(info.data[0])); // 乙方已签订合同，合同正式生效 
+                } else {
+                  const reqFun = contract.methods.breakContract(houseId, reason);
+                  const reqABI = reqFun.encodeABI();
+                  console.log("Start Break the contract!", addr);
+                  packSendMsg(addr, privateKey, contractAddress, reqABI).then(receipt => {
+                      if (receipt) {
+                          web3.eth.getTransactionReceipt(receipt.transactionHash).then(transaction => {
+                              console.log("getTransactionReceipt", transaction);
+                              if (transaction.status) {
+                                 console.log("Break Contract success!");
+                              } else {
+                                resolve({status:204, err: "获取不到链上收据"});
+                                return;
+                              }
+                          });
+                          let [flag, ctx, logRes] = decodeLog(contract, receipt, 'BreakContract');
+                          if (flag) {
+                            console.log("Break the contract receive: ", ctx)
+                            resolve({status:200, data: ctx.transactionHash});
+                            let house_state = comVar.houseState.BreakRent; 
+                            dbFun.updateReleaseInfo(db, "", addr, houseId, house_state);
+                            dbAgreeFun.updateAgree(db, houseId, reason, comVar.agreeState.BreakRent); // 毁约
+                          } else {
+                            resolve({status:205, err:"毁约失败!"});
+                          }
+                      }
+                  }).catch(err => {
+                     console.log("Break the contract occure error!", err);
+                     reject({stats: 206, err: "请检查该房屋是否已经毁约！"});
+                  });         
+                }
+              });
+          }
         });
-      });
   });
-  // 房屋认证
-  app.get('/auth/:address/:idcard/:guid/:ownername/:userid/:prikey', (req, res) => {
-      console.log("-----authenticate house params----", req.params)
-      setResHeadr(res);
-      contractAuth.then(con => {
-         AuthFun.authHouse(conn, con, req.params.address, req.params.idcard, req.params.guid, req.params.ownername, req.params.userid, req.params.prikey).then(ctx => {
-            res.send(ctx);
-         }).catch(err => {
-            res.send(err);
-         });
+}
+
+function checkBreak(db, contract, houseId, punishAmount, punishAddr, addr, privateKey) {
+  return new Promise((resolve, reject) => {
+      const reqFun = contract.methods.checkBreak(houseId, punishAmount, punishAddr);
+      const reqABI = reqFun.encodeABI();
+      console.log("Start Check Break the contract!", addr);
+      packSendMsg(addr, privateKey, contractAddress, reqABI).then(receipt => {
+          if (receipt) {
+            console.log("Check Break Contract success!");
+            let [flag, ctx, logRes] = decodeLog(contract, receipt, 'ApprovalBreak');
+                if (flag) {
+                  console.log("Check Break the contract receive: ", ctx)
+                  resolve({status:flag, data: ctx.transactionHash});
+                  let house_state = comVar.houseState.AlreadyBreak; 
+                  dbFun.updateReleaseInfo(db, "", addr, houseId, house_state);
+                  let rtnData = dbAgreeFun.updateAgreeState(db, houseId, comVar.agreeState.AlreadyBreak);
+                  console.log(rtnData)
+                  if (rtnData.status) {
+                     let reason = rtnData.reason;
+                     dbCommentFun.insertCommentBreak(db, houseId, punishAmount, punishAddr, reason, rtnData.house_addr);
+                  }
+                } else {
+                  resolve({status:false, err:"审核失败!"});
+                }
+          } 
       }).catch(err => {
-            res.send({
-              "status": false,
-              "err": err
-            });
+        console.log("Check Break the contract occure error!", err);
+         reject({status: false, err: err});
       });
   });
-  // 请求查看房屋授权
-  app.get('/requestapprove/:houseid/:landlord_addr/:leaser_addr', (req, res) => {
-      console.log("-----request approve params----", req.params)
-      setResHeadr(res);
-      authManager.insertApproRecord(conn, req.params.leaser_addr, req.params.landlord_addr, req.params.houseid).then(ctx => {
-          console.log(ctx)
-          res.send(ctx);
-      }).catch(err => {
-          console.log("request approve error", err)
-          res.send({status: 204, err: err});
-      });
-  });
-  // 授权某个用户访问认证信息
-  app.get('/approve/:houseid/:leaseraddr/:landlordaddr/:prikey', (req, res) => {
-      console.log("-----approve house params----", req.params)
-      setResHeadr(res);
-      contractAuth.then(con => {
-         AuthFun.approveVisit(conn, con, req.params.houseid, req.params.leaseraddr, req.params.landlordaddr, req.params.prikey).then(ctx => {
-            res.send(ctx);
-         }).catch(err => {
-            res.send(err);
-         });
-      }).catch(err => {
-            res.send({
-              "status": false,
-              "err": err
-            });
-      });
-  });
-  app.get('/getAuthInfo/:houseid/:leaser_addr', (req, res) => {
-      console.log("-----authenticate house params----", req.params)
-      setResHeadr(res);
-      contractAuth.then(con => {
-         AuthFun.getHouseOwer(con, req.params.houseid, req.params.leaser_addr).then(ctx => {
-            res.send(ctx);
-         }).catch(err => {
-            res.send(err);
-         });
-      }).catch(err => {
-            res.send({
-              "status": false,
-              "err": err
-            });
-      });
-  });
-  // reject approve
-  app.get('/reject/:houseid/:leaser_addr', (req, res) => {
-      console.log("-----release house params----", req.params)
-      setResHeadr(res);
-      authManager.updateAuthInfo(conn, req.params.houseid, req.params.leaser_addr, 2).then(ctx => {
-          console.log(ctx)
-          res.send(ctx);
-      }).catch(err => {
-          console.log("get address error", err)
-          res.send({status: 204, err: err});
-      });
-  });
-  // get auth
-  app.get('/getauth/:houseid', (req, res) => {
-      console.log("-----release house params----", req.params)
-      setResHeadr(res);
-      authManager.queryApprove(conn, req.params.houseid).then(ctx => {
-          console.log(ctx)
-          res.send(ctx);
-      }).catch(err => {
-          console.log("get address error", err)
-          res.send({status: 204, err: err});
-      });
-  });
-  // House 
-  app.get('/release/:address/:prikey/:houseaddr/:des/:info/:tenancy/:rent/:hopectx', (req, res) => {
-      console.log("-----release house params----", req.params);
-      setResHeadr(res);
-      contractHouse.then(con => {
-        HouseFun.releaseHouse(conn, con, contractToken, req.params.address, req.params.prikey, req.params.houseaddr, 0, req.params.des, req.params.info, req.params.tenancy, req.params.rent, req.params.hopectx).then(ctx => {
-          res.send(ctx);
+}
+// 评论房源
+function commentHouse(contract, relType, houseId, ratingIndex, remark, addr, privateKey) {
+  return new Promise((resolve, reject) => {
+    checkLogin(addr).then(flag => {
+      if (!flag) {
+        console.log("Please login in first");
+        resolve({status: false, err: "请先登录！"});
+      } else {
+        TokenFun.initHouseFunToken().then(con => {
+          TokenFun.transferApprove(con, addr, comVar.disAmount, comVar.disAddr, comVar.privKey).then((res, rej) => {
+            console.log(res, addr)
+            if (res) {
+                const reqFun = contract.methods.commentHouse(houseId, ratingIndex, remark);
+                const reqABI = reqFun.encodeABI();
+                console.log("Start comment the house!", addr);
+                packSendMsg(addr, privateKey, contractAddress, reqABI).then(receipt => {
+                    let [flag, ctx, logRes] = decodeLog(contract, receipt, 'CommentHouse');
+                    if (flag) {
+                      console.log("Check Break the contract receive: ", ctx)
+                      resolve({status:flag, data: ctx.transactionHash});
+                      if (relType == '1' || relType == 1) { // 房东
+                          dbCommentFun.landlordUpdateComment(db, houseId, ratingIndex, remark, addr);
+                      } else { // 租户  
+                          dbCommentFun.leaserUpdateComment(db, houseId, ratingIndex, remark, addr);
+                      }
+                    } else {
+                      resolve({status:false, err:"审核失败!"});
+                    }   
+                }).catch(err => {
+                   console.log("Comment the house occure error!", err);
+                   reject(err);
+                });
+            }
+          });
         }).catch(err => {
-          res.send(err);
+           console.log("distribute reward approval fail", err);
+           reject(err);
         });
-      }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  // 获取发布的房源
-  app.get('/gethouse/:houseid/:housestate', (req, res) => {
-      console.log("-----release house params----", req.params)
-      setResHeadr(res);
-      houseManager.queryReleaseInfo(conn, req.params.houseid,req.params.housestate).then(ctx => {
-          console.log(ctx)
-          res.send(ctx);
-      }).catch(err => {
-          console.log("get address error", err)
-          res.send({status: 204, err: err});
-      });
-  });
-  // 预定房屋
-  app.get('/requestsign/:address/:prikey/:houseid/:realrent', (req, res) => {
-      console.log("-----request sign house params----", req.params)
-      setResHeadr(res);
-      contractHouse.then(con => {
-          HouseFun.requestSign(conn, con, req.params.address, req.params.prikey, req.params.houseid, req.params.realrent).then(ctx => {
-            res.send(ctx);
-          }).catch(err => {
-            res.send({
-              "status": false,
-              "err": err
-            });
-          });
-      });
-  });
-  // 签订合同
-  app.get('/sign/:username/:idcard/:phonenum/:rental/:tenacy/:houseid/:houseaddr/:falsify/:housedeadline/:addr/:prikey', (req, res) => {
-      console.log("-----sign house params----", req.params);
-      setResHeadr(res);
-      let params = req.params;
-      contractHouse.then(con => {
-          console.log("sign agreement");
-          HouseFun.signAgreement(conn, con, params.username, params.houseid, params.houseaddr, params.falsify, params.phonenum, params.idcard,
-           params.tenacy, params.rental, params.housedeadline, params.addr, params.prikey).then(ctx => {
-            res.send(ctx);
-          }).catch(err => {
-            res.send(err);
-          });
-      }).catch(err => {
-          res.send({
-            "status": false,
-            "err": err
-          });
-      });
-  });
-  // 获取房东已签订的合同
-  app.get('/getsign/:houseid/:addr', (req, res) => {
-      console.log("-----release house params----", req.params)
-      setResHeadr(res);
-      houseManager.querySignInfo(conn, req.params.houseid,req.params.addr).then(ctx => {
-          console.log(ctx)
-          res.send(ctx);
-      }).catch(err => {
-          console.log("get address error", err)
-          res.send({status: 204, err: err});
-      });
-  });
-  // 签订合同
-  // leaserId, leaserAddr, houseUse, renewalMonth, addr
-  // bytes32 _houseId,string _name, uint _signHowLong,uint _rental, uint256 _yearRent
-  app.get('/sign_leaser/:username/:idcard/:phonenum/:rental/:tenacy/:houseid/:houseaddr/:falsify/:housedeadline/:addr/:prikey', (req, res) => {
-      console.log("-----sign house params----", req.params);
-      setResHeadr(res);
-      let params = req.params;
-      contractHouse.then(con => {
-          console.log("sign agreement");
-          HouseFun.signAgreement(conn, con, params.username, params.houseid, params.houseaddr, params.falsify, params.phonenum, params.idcard,
-           params.tenacy, params.rental, params.housedeadline, params.addr, params.prikey).then(ctx => {
-            res.send(ctx);
-          }).catch(err => {
-            res.send(err);
-          });
-      }).catch(err => {
-          res.send({
-            "status": false,
-            "err": err
-          });
-      });
-  });
-  // 毁约
-  app.get('/break/:houseid/:reason/:address/:prikey', (req, res) => {
-      console.log("-----sign house params----", req.params);
-      setResHeadr(res);
-      contractHouse.then(con => {
-          HouseFun.breakContract(con, req.params.address, req.params.prikey, req.params.houseid, req.params.reason).then(ctx => {
-             res.send(ctx);
-          }).catch(err => {
-            res.send({
-              "status": false,
-              "err": err
-            });
-          });
-      });
-  });
-  // 审查毁约
-  app.get('/checkbreak/:address/:prikey/:houseid/:punishamount/:punishaddr', (req, res) => {
-      console.log("-----check break agreement params----", req.params)
-      HouseFun.checkBreak(contractHouse, req.params.address, req.params.prikey, req.params.houseid, req.params.punishamount, req.params.punishaddr).then(ctx => {
-        res.send(ctx);
-     }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  // 退币
-  app.get('/withdraw/:address/:prikey/:houseid/:amount', (req, res) => {
-      console.log("-----withdraw coin params----", req.params)
-      setResHeadr(res);
-      contractHouse.then(con => {
-          HouseFun.withdraw(con, req.params.address, req.params.prikey, req.params.houseid, req.params.amount).then(ctx => {
-              res.send(ctx);
-          }).catch(err => {
-              console.log("==init house error==", err)
-              res.send(err);
-          });
-      }).catch(err => {
-          res.send({
-            "status": false,
-            "err": err
-          });
-      });
-  });
-  // 评论房屋
-  app.get('/commenthouse/:address/:prikey/:houseid/:ratingindex/reamrk', (req, res) => {
-      console.log("-----withdraw coin params----", req.params)
-      HouseFun.commentHouse(contractHouse, req.params.address, req.params.prikey, req.params.houseid, req.params.ratingindex, req.params.reamrk).then(ctx => {
-       if (ctx) { // Already sign
-            res.send({
-              "status": ctx.status,
-              "txHash": ctx.transactionHash
-            });
-          }
-     }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  // 获取房屋基本信息
-  app.get('/getbasic/:houseid', (req, res) => {
-      console.log("---------", req.params)
-      HouseFun.commentHouse(contractHouse, req.params.houseid).then(ctx => {
-       if (ctx) { // Already sign
-            res.send({
-              "status": ctx.status,
-              "info": ctx
-            });
-          }
-     }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  // 获取房屋基本信息
-  app.get('/getrelease/:houseid', (req, res) => {
-      console.log("---------", req.params)
-      HouseFun.getHouseRelaseInfo(contractHouse, req.params.houseid).then(ctx => {
-       if (ctx) { // Already sign
-            res.send({
-              "status": ctx.status,
-              "info": ctx
-            });
-          }
-     }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  // 获取对房东的评论
-  app.get('/getremark/:houseid', (req, res) => {
-      console.log("---------", req.params)
-      RemarkFun.getRemarkHouse(contractRemark, req.params.houseid).then(ctx => {
-       if (ctx) { // Already sign
-            res.send({
-              "status": ctx.status,
-              "remark": ctx
-            });
-          }
-     }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  // 获取对租户的评论
-  app.get('/getremark/:houseid', (req, res) => {
-      console.log("---------", req.params)
-      RemarkFun.getRemarkTenant(contractRemark, req.params.houseid).then(ctx => {
-       if (ctx) { // Already sign
-            res.send({
-              "status": ctx.status,
-              "remark": ctx
-            });
-          }
-     }).catch(err => {
-        res.send({
-          "status": false,
-          "err": err
-        });
-      });
-  });
-  console.log("Start listen the port");
-  server.listen(configuration.ServerPort,configuration.ServerAddress);
+      }
+    });
   });
 }
 
-function packSuc(res, ctx) {
-  res.send({"status": ctx.status,"data": ctx});
+function decodeLog(contract, receipt, eventName) {
+  const eventJsonInterface = contract._jsonInterface.find(
+      o => (o.name === eventName) && o.type === 'event');
+    if (JSON.stringify(receipt.logs) != '[]') {
+        const log = receipt.logs.find(
+          l => l.topics.includes(eventJsonInterface.signature)
+        );
+        let decodeLog = Web3EthAbi.decodeLog(eventJsonInterface.inputs, log.data, log.topics.slice(1));
+        console.log("==decode log==",decodeLog)
+        return [true, receipt, decodeLog];
+    } else {
+      return [false, "Cannt find logs", {}];
+    }
 }
 
-function packFail(res, err) {
-  res.send({"status": false,"err": err});
+function packSendMsg(formAddr, privateKey, toAddr, createABI) {
+    let gas, nonce;
+    return new Promise((resolve, reject) => {
+      gas = 20000000000;
+      web3.eth.getTransactionCount(formAddr, 'pending').then(_nonce => {
+        if (nonceMap.has(_nonce)) {
+          _nonce += 1
+        }
+        nonceMap.set(_nonce, true);
+        nonce = _nonce.toString(16);
+        const txParams = {
+          gasPrice: gas,
+            gasLimit: 2000000,
+            to: toAddr,
+            data: createABI,
+            from: formAddr,
+            chainId: 3,
+            nonce: '0x' + nonce
+        }
+        console.log("start sign the transaction")
+        web3.eth.accounts.signTransaction(txParams, privateKey).then(signedTx => {
+          console.log("start send the transaction")
+          web3.eth.sendSignedTransaction(signedTx.rawTransaction).then(receipt => {
+            if (receipt.status) {
+              console.log(receipt.transactionHash)
+              resolve(receipt);
+            } else {
+              reject("发送交易失败!");
+            }
+          }).catch(err1 => {
+            console.log("Send Fail:", err1);
+            reject(err1);
+          });
+        }).catch(err => {
+          console.log("Sign Fail:", err);
+          reject(err);
+        });;
+      }).catch(err => {
+        console.log("GetTransactionCount Fail:", err);
+        reject(err);
+      });
+    });   
 }
 
-function setResHeadr(res) {
-  res.header("Access-Control-Allow-Origin", "*");
+function getHouseBasic(contract, houseId) {
+  return new Promise((resolve, reject) => {
+    contract.methods.getHouseBasicInfo(houseId).call().then(res => {
+      console.log(res);
+    }).catch(err => {
+      console.log("get house basic information err:", err);
+      reject(err);
+    });
+  });
 }
 
+function getHouseRelaseInfo(contract, houseId) {
+  return new Promise((resolve, reject) => {
+    console.log("---get House Relase Info---",houseId)
+    contract.methods.getHouseReleaseInfo(houseId).call().then(res => {
+      console.log(res);
+      resolve({status: true, data: res});
+    }).catch(err => {
+      console.log("get house relase information err:", err);
+      reject({status: false, err: err});
+    });
+  });
+}
 
 module.exports = {
-  initialize
+  initHouseFun,
+  releaseHouse,
+  requestSign,
+  withdraw,
+  breakContract,
+  checkBreak,
+  commentHouse,
+  getHouseBasic,
+  getHouseRelaseInfo
 }

@@ -53,22 +53,14 @@ contract RentBasic {
 		bool		  ischecked; // 毁约时是否通过管理员审核
 		bool          canSign; // 能否签订合同
 	}
-	// 毁约时惩罚内容
-	struct PunishCtx {
-		uint punishAmount; // 惩罚的数量
-		address punishAddr; // 惩罚的地址
-	}
 	TokenInterface token;
-	// TenancyAgreement tenancyContract;
 	RegisterInterface userRegister;
 	RemarkInterface remarkContract;
 	AuthInterface authContract;
-	// HouseState public flag2;
 	mapping(bytes32 => HouseInfo) houseInfos; 
 	mapping(bytes32 => HouseReleaseInfo) hsReleaseInfos; 
 	mapping(address => uint) public addrMoney; 
 
-	mapping(bytes32 => PunishCtx) punishRelation;
 	mapping(bytes32 => mapping(address => uint)) bonds; 
 	mapping(address => address) l2rMaps;
 
@@ -84,7 +76,7 @@ contract RentBasic {
 
 	uint256 promiseAmount = 500 * (10 ** 8);
 	uint256 punishLevel1Amount = 10 * (10 ** 8); 
-	uint256 remarkAmount = 4 * (10 ** 8);
+	uint256 remarkAmount = 2 * (10 ** 8);
 
 	event RelInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
 	event RelBasic(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,string _describe, string _info, string _hopeYou,address indexed _landlord);		
@@ -284,8 +276,7 @@ contract RentBasic {
 	function commentHouse(bytes32 _houseId, uint8 _ratingIndex, string _ramark) public returns(bool) {
 		address sender = msg.sender;
 		HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
-		require(reInfo.existed, "Not find house!");
-	 	require(reInfo.state != HouseState.Renting, "Rent is not finished!");
+		require(reInfo.ischecked, "Not finish the transaction!");
 	 	address _refeAddr;
 	 	address landlord = houseInfos[_houseId].landlord;
 	 	if (landlord == sender) {  // 房东
@@ -297,7 +288,7 @@ contract RentBasic {
 	 	if (!flag) {
 	 		return false;
 	 	}
-		require(token.transferFrom(disRrkAddr,sender, remarkAmount), "Distribute fail !");
+		require(token.transferFrom(disRrkAddr, sender, remarkAmount), "Distribute fail !");
 		CommentHouse(sender, _houseId, _ratingIndex, _ramark);
 		return true;
 	}
