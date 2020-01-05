@@ -4,6 +4,7 @@ contract UserRegister {
 	//定义用户数据结构
 	struct UserStruct {
 		address userAddress;
+		uint8 state; // 用户登录状态， 1：创建，2：登录。3：登出
 		uint userId; // 用户ID
 		uint cardId; //身份证号
 		uint time;
@@ -67,7 +68,7 @@ contract UserRegister {
 	function createUser(address _userAddress, string _username, string _pwd, uint _userId, uint _cardId) public returns(bool) {
         require(!isAlreayReg(_userAddress, _username), "the name already occupy by some one or the address already register!"); //如果地址已存在则不允许再创建
 	    userAddresses.push(_userAddress); //地址集合push新地址
-	    userStruct[_userAddress] = UserStruct(_userAddress, _userId, _cardId, now, userAddresses.length - 1, _username, _pwd);
+	    userStruct[_userAddress] = UserStruct(_userAddress, 1, _userId, _cardId, now, userAddresses.length - 1, _username, _pwd);
 	    usernames.push(_username); //用户名集合push新用户
 	    userListStruct[_username] = UserListStruct(_userAddress, usernames.length - 1); //用户所对应的地址集合
 	    CreateUser(_userAddress, _username, _userId); // 创建User事件
@@ -102,6 +103,7 @@ contract UserRegister {
 	     UserStruct user = userStruct[_userAddr];
 	     if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd)) {
 	     	userLogins[_userAddr] = true;
+	     	userStruct[_userAddr].state = 2;
 		 	LoginEvent(_userAddr, _userName);
 		 	return true;
 	     }
@@ -117,11 +119,15 @@ contract UserRegister {
 	function logout(address _userAddr, string _userName, string _pwd) public returns (bool) {
 	    if (isLogin(_userAddr)) {
 	        userLogins[_userAddr] = false;
+	        userStruct[_userAddr].state = 3;
 	        LoginOutEvent(_userAddr, _userName);
 	        return true;
 	    } else {
 	        return false;
 	    }
+	}
+	function chainStatus(address _userAddr) public returns(uint8) {
+		return userStruct[_userAddr].state;
 	}
 	function isLogin(address _userAddr) public returns(bool) {
 		if (!userLogins[_userAddr]) {
@@ -129,6 +135,7 @@ contract UserRegister {
 		}
 		return true;
 	}
+
 	// 授权某人访问
 	function approveVisit() {
 		
