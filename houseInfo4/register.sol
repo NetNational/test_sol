@@ -34,6 +34,11 @@ contract UserRegister {
 	modifier onlyAdmin() {
         _;
 	}
+	modifier checkLogin(address _userAddr) {
+		 require(isExitUserAddress(_userAddr), "User must be created first！");
+	     require(!isLogin(_userAddr), "User already login!");
+	     _;
+	}
 
     function isRegister() public constant returns(bool isIndeed) {
         return true;
@@ -47,13 +52,12 @@ contract UserRegister {
 	//判断用户名是否存在
 	function isExitUsername(string _username) public constant returns(bool isIndeed) {
 	    if (usernames.length == 0) return false;
-	    // return (keccak256(usernames[userListStruct[_username].index]) == keccak256(_username));
 	    return compareStr(usernames[userListStruct[_username].index], _username);
 	}
 
 	// 判断用户是否已注册
 	function isAlreayReg(address _userAddress, string _uername) public constant returns(bool) {
-		return (isExitUserAddress(_userAddress) && isExitUsername(_uername));
+		return (isExitUserAddress(_userAddress) || isExitUsername(_uername));
 	}
 
 	//根据用户名查找对于的address
@@ -95,11 +99,12 @@ contract UserRegister {
 	    }
 		return false;
 	}
-	function login(address _userAddr, string _userName, string _pwd) public returns(bool) {
-	     require(isExitUserAddress(_userAddr), "User must be created first！");
-	     require(!isLogin(_userAddr), "User already login!");
+
+	function login(address _userAddr, string _userName, string _pwd) public checkLogin(_userAddr) returns(bool) {
+	     // require(isExitUserAddress(_userAddr), "User must be created first！");
+	     // require(!isLogin(_userAddr), "User already login!");
 	     UserStruct user = userStruct[_userAddr];
-	     if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd)) {
+	     if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd) && user.userAddress == _userAddr) {
 	     	userLogins[_userAddr] = true;
 	     	userStruct[_userAddr].state = 2;
 		 	LoginEvent(_userAddr, _userName);

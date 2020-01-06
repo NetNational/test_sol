@@ -18,6 +18,9 @@ interface AuthInterface {
 	function contrctExist() public constant returns(bool);
 	function getHouseIds(address _addr) public constant returns(bytes32);
 	function getIsAuth(address _addr) public constant returns(bool);
+	function setIds(bytes32 _houseId, bytes32 _tranId, address _authAddr) returns(bool);
+	function getTransIds(bytes32 _houseId) public constant returns(bytes32[]);
+	function getLastTransId(bytes32 _houseId) public constant returns(bytes32);
 }
 
 contract RentBasic {
@@ -79,7 +82,7 @@ contract RentBasic {
 	uint256 remarkAmount = 2 * (10 ** 8);
 
 	event RelInfo(bytes32 houseHash, HouseState _defaultState, uint32 _tenancy, uint256 _rent, uint _releaseTime, uint _deadTime, bool existed);	
-	event RelBasic(bytes32 houseHash, uint8 rating,string _houseAddr,uint8 _huxing,string _describe, string _info, string _hopeYou,address indexed _landlord);		
+	event RelBasic(bytes32 houseHash, string _houseAddr,string _describe, string _info, string _hopeYou);		
 	// event SignContract(address indexed _sender, bytes32 _houseId, uint256 _signHowLong, uint256 _rental, bytes32 _signatrue, uint256 _time);
 	event SignContract(address indexed sender,bytes32 _houseId, address indexed _landlord, uint _signHowLong, uint _rental, uint nowTime);
 	event CommentHouse(address indexed _commenter, bytes32 _houseId, uint8 _rating, string _ramark);
@@ -108,22 +111,37 @@ contract RentBasic {
 		require(userRegister.isLogin(msg.sender), "require user must sign in!");
 		_;
 	}
+	// 请求房屋
+	modifier checkReq(bytes32 _houseId) {
+		HouseInfo hsInfo = houseInfos[_houseId];
+		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
+		require(hsReInfo.existed, "House is not existed");
+		reqiure(hsInfo.landlord != msg.sender, "Cannt clinch a deal with yourself!");
+		require(hsReInfo.state == defaultState, "House State is not in release");
+		_;
+	}
+
 	function isExist() public constant returns(bool isIndeed) {
         return true;
     }
 	function releaseHouse(string _houseAddr,uint8 _huxing,string _describe, string _info, uint32 _tenancy, uint256 _rent, string _hopeYou) public onlyLogin returns (bytes32) {
 		address houseOwer = msg.sender;
 		require(authContract.getIsAuth(houseOwer), "House is not authenticated!");
-		bytes32 houseIds = authContract.getHouseIds(houseOwer);
-		require(canState(hsReleaseInfos[houseIds].state), "House is not allowed to re-publish now!"); // 房屋租赁中，暂不能发布房源
+		bytes32 authIds = authContract.getHouseIds(houseOwer);
+		bytes32 lastId = authContract.getLastTransId(authIds);
+		require(canState(hsReleaseInfos[lastId].state), "House is not allowed to re-publish now!"); // 房屋租赁中，暂不能发布房源
 		uint256 nowTimes = now; 
 		uint256 deadTime = nowTimes + 7 days;
+		// 发布房源时生成的id
+		bytes32 houseIds = keccak256(abi.encodePacked(houseOwer, authIds, lastId));
+		// 将新的id添加到auth中
+		authContract.setIds(authIds, houseIds, houseOwer);
 		// releaser should hold not less than 500 BLT
-		require(token.transferFrom(msg.sender, recPromiseAddr,  promiseAmount),"Release_Balance is not enough");
+		require(token.transferFrom(msg.sender, recPromiseAddr,  promiseAmount),"Release Balance is not enough");
 		addrMoney[houseOwer] = promiseAmount;
 		houseInfos[houseIds] = HouseInfo(2, 2, _huxing, _houseAddr, houseIds, _describe, _info, _hopeYou,houseOwer);
 		hsReleaseInfos[houseIds] = HouseReleaseInfo(defaultState, _tenancy, _rent, nowTimes, nowTimes, deadTime, true, false, false);
-		RelBasic(houseIds, 2, _houseAddr, _huxing, _describe, _info, _hopeYou, houseOwer);
+		RelBasic(houseIds, _houseAddr, _describe, _info, _hopeYou);
 		RelInfo(houseIds, defaultState, _tenancy, _rent, nowTimes, deadTime, true);
 		return houseIds;
 	}
@@ -144,18 +162,14 @@ contract RentBasic {
 		}
 		return false;
 	}
-	function requestSign(bytes32 _houseId, uint256 _realRent) public onlyLogin returns (HouseState,address){
-		HouseInfo hsInfo = houseInfos[_houseId];
-		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
+	function requestSign(bytes32 _houseId, uint256 _realRent) public onlyLogin checkReq(_houseId) returns (HouseState,address){
 		address sender = msg.sender;
-		require(hsReInfo.existed, "House is not existed");
-		require(hsReInfo.state == defaultState, "House State is not in release");
 		require(token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
 		bonds[_houseId][msg.sender] = _realRent;
-		l2rMaps[hsInfo.landlord] = sender;
+		l2rMaps[houseInfos[_houseId].landlord] = sender;
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
-		return (hsReInfo.state, hsInfo.landlord);
+		return (HouseState.WaitRent, houseInfos[_houseId].landlord);
 	}
 
 	function signAgreement(bytes32 _houseId, address _landlord, address _leaserAddr, uint _signHowLong, uint _rental) public returns(bool) {

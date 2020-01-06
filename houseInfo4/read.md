@@ -39,8 +39,6 @@ House-0.4.4
 address anthor = l2rMaps[sender];
 bonds[_houseId][anthor] = bonds[_houseId][anthor] - amount;
 
-
-
 ## House-0.4.5说明
 
 1、优化变量，减少public变量
@@ -48,6 +46,14 @@ bonds[_houseId][anthor] = bonds[_houseId][anthor] - amount;
 2、增加自动发放奖励
 
 ## House-1.0 说明
+
 1、代码优化，使用ABI方式调用register和token模块，而不是直接通过代码调用，优化代码结构
 2、增加登录验证，只有当用户登录后才能发布和签约
 
+House-1.9 说明
+
+1、调整一个地址对应一个houseId，一个houseId对应一条记录。将房源认证生成的houseId作为该房屋的唯一链上标识，房源发布时生成的id作为该笔房源交易的id，作为后续跟踪该房源的索引
+
+2、调整requestSign中的相关判断，采用modifier判断。
+
+3、调整login中require的判断，采用modifier替代。

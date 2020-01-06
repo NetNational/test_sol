@@ -5,7 +5,6 @@ contract Authentication {
 	struct AuthCtx {
 		uint idCard; // 业主身份证
 		uint    guid; //房屋的唯一码
-		uint    uptimes; // 更新次数
 		string  owername; // 业主名字
 		bytes32 houseId; // 房屋id
 		bool    isAuth; // 是否已经认证
@@ -20,7 +19,8 @@ contract Authentication {
 	mapping(address => AuthCtx)   authCtxs; // owner address => 房屋所有权信息
 	mapping(address => bool)  agreetlists; // 同意修改授权
 	mapping(uint256 => bool)  alAuthlist; //已经认证房源列表
-	mapping(uint256 => []bytes32) houseIdSets; // 房源houseId历史集合(guid => houseId集合)
+	mapping(uint256 => bytes32[]) houseIdSets; // 房源houseId历史集合(guid => houseId集合)
+	mapping(bytes32 => bytes32[]) ids; // 房屋id=>每次房屋发布对应的id
 	bytes32 public houseId;
 
 	event AuthHouse(address indexed _owner, string _owername, bytes32 _houseId);
@@ -55,13 +55,27 @@ contract Authentication {
 	function getIsAuth(address _addr) public constant returns(bool) {
 		return authCtxs[_addr].isAuth;
 	}
+	function setIds(bytes32 _houseId, bytes32 _tranId, address _authAddr) returns(bool) {
+		require(authCtxs[_authAddr].houseId == _houseId, "House id is not ");
+		ids[_houseId].push(_tranId);
+		return true;
+	}
+	function getTransIds(bytes32 _houseId) public constant returns(bytes32[]) {
+		return ids[_houseId];
+	}
+	// 获取最后一条id
+	function getLastTransId(bytes32 _houseId) public constant returns(bytes32) {
+		bytes32[] trans = ids[_houseId];
+		return trans[trans.length-1];
+	}
 	// 认证房屋, 主要依靠房屋的唯一码（GUID）+业主身份证+业主姓名
 	function authHouse(uint _idCard, uint _guid, string _owername) public returns(bytes32) {
 		require(!alAuthlist[_guid], "This house already be Authentication!");
 		address sender = msg.sender;
-		bytes32 houseIds = keccak256(abi.encodePacked(sender, _idCard, 1, _guid, _owername));
-		authCtxs[sender] = AuthCtx(_idCard, _guid, 1, _owername, houseIds, true);
+		bytes32 houseIds = keccak256(abi.encodePacked(sender, _idCard, _guid, _owername));
+		authCtxs[sender] = AuthCtx(_idCard, _guid, _owername, houseIds, true);
 		alAuthlist[_guid] = true;
+		ids[houseIds].push(houseIds);
 		houseId = houseIds;
 		AuthHouse(sender, _owername, houseIds);
 		return houseIds;
@@ -90,15 +104,13 @@ contract Authentication {
 		return true;
 	} 
 	// 更新房屋信息
-	function updateHouse(address _addr) public onlyApprove returns(bytes32) {
+	function updateHouse(uint _idCard, uint _guid, string _owername) public onlyApprove returns(bytes32) {
 		address _addr = msg.sender;
 		require(authCtxs[_addr].isAuth, "House is not authenticated!");
 		bytes32 _oldId = authCtxs[_addr].houseId;
-		uint num = authCtxs[_addr].uptimes;
-		bytes32 _newId = keccak256(abi.encodePacked(_addr, _idCard, num, _guid, _owername));
+		bytes32 _newId = keccak256(abi.encodePacked(_addr, _idCard, _guid, _owername));
 		authCtxs[_addr] = AuthCtx(_idCard, _guid, _owername, _newId, true);
 		agreetlists[_addr] = false;
-		authCtxs[_addr].uptimes += 1
 		UpdateHouse(_addr,  _oldId, _newId);
 		return _newId;
 	}
