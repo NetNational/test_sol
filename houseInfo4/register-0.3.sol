@@ -11,6 +11,7 @@ contract UserRegister {
 	    uint index;
 	    string username;
 	    string pwd;
+	    bool   existed;
 	}
 
 	//定义用户列表数据结构
@@ -67,11 +68,17 @@ contract UserRegister {
 	function createUser(address _userAddress, string _username, string _pwd, uint _userId, uint _cardId) public returns(bool) {
         require(!isAlreayReg(_userAddress, _username), "the name already occupy by some one or the address already register!"); //如果地址已存在则不允许再创建
 	    userAddresses.push(_userAddress); //地址集合push新地址
-	    userStruct[_userAddress] = UserStruct(_userAddress, 1, _userId, _cardId, now, userAddresses.length - 1, _username, _pwd);
+	    userStruct[_userAddress] = UserStruct(_userAddress, 1, _userId, _cardId, now, userAddresses.length - 1, _username, _pwd, true);
 	    usernames.push(_username); //用户名集合push新用户
 	    userListStruct[_username] = UserListStruct(_userAddress, usernames.length - 1); //用户所对应的地址集合
 	    CreateUser(_userAddress, _username, _userId); // 创建User事件
 	    return true;
+	}
+	// 获取身份信息
+	function getPersonInfo(address _userAddress) public constant returns(uint, string) {
+		require(userStruct[_userAddress].existed, "This user have not created!");
+		require(tx.origin == _userAddress, "The user can only look up his own information!");
+		return (userStruct[_userAddress].cardId, userStruct[_userAddress].username);
 	}
 	//获取用户个人信息
 	function findUser(address _userAddress) public constant returns (address,uint, string, uint, uint) {

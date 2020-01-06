@@ -4,8 +4,8 @@ contract Authentication {
 	// 房屋所有权信息
 	struct AuthCtx {
 		uint idCard; // 业主身份证
-		uint   guid; //房屋的唯一码
-		string owername; // 业主名字
+		uint    guid; //房屋的唯一码
+		string  owername; // 业主名字
 		bytes32 houseId; // 房屋id
 		bool    isAuth; // 是否已经认证
 	}
