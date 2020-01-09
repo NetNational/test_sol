@@ -6,6 +6,7 @@ interface RentBasicInterface {
 	function setSign(bytes32 _houseId) public returns(bool);
 	function isExist() public constant returns(bool isIndeed);
 	function setHouseState(bytes32 _houseId) public returns(bool);
+	function canSign(bytes32 _houseId) public returns(bool); 
 }
 
 contract TenancyAgreement {
@@ -62,6 +63,7 @@ contract TenancyAgreement {
 	}
 
 	function newAgreement(string _landlord, uint _idCard, uint _phoneNum, uint _rental, uint _signHowLong, bytes32 _houseId, string _houseAddr, uint _falsify, uint8 _houseDeadLine, string _payOne, string _houseUse)  public judgeHouse(_houseId) returns(bool) {
+		require(houseInterface.canSign(_houseId), "House state is not satisfied the request!");
 		landlordAgrees[_houseId] = LandlordAgree(_houseDeadLine, _rental, _signHowLong, _falsify, _idCard, _houseUse, _landlord, _houseAddr);
 		rules[_houseId].landlordPhone = _phoneNum;
 		rules[_houseId].landlordAddr = msg.sender;
@@ -86,20 +88,6 @@ contract TenancyAgreement {
 		LeaserSign(msg.sender, _phoneNum, _houseId);
 		return true;
 	}
-
- //    function tenantSign(bytes32 _houseId, string _tenant, uint _phoneNum, uint256 _cardId, uint _renewalMonth, uint _breakMonth) public judgeHouse(_houseId) returns(bool) {
-	// 	uint256 startTime = now;
-	// 	LandlordAgree landlordAgree = landlordAgrees[_houseId];
-	// 	uint256 end  = startTime + (landlordAgree.tenancy * 30) * 1 days;
-	// 	leaserAgrees[_houseId] = LeaserAgree(_cardId, _renewalMonth, _breakMonth, _tenant, msg.sender);
-	// 	rules[_houseId].startTime = startTime;
-	// 	rules[_houseId].endTime = end;
-	// 	rules[_houseId].leaserPhone  = _phoneNum;
-	// 	rules[_houseId].isSign  = true;
-	// 	require(houseInterface.signAgreement(_houseId, rules[_houseId].landlordAddr, msg.sender, landlordAgree.tenancy, landlordAgree.rent), "Sign the agree fail!");
-	// 	LeaserSign(msg.sender, _phoneNum, _houseId);
-	// 	return true;
-	// }
 
 	function endRent(bytes32 _houseId) public returns(bool) {
 		require(now >= rules[_houseId].endTime, "The house is still in renting!");

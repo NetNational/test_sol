@@ -118,6 +118,10 @@ contract RentBasic {
 		require(hsReInfo.existed, "House is not existed");
 		reqiure(hsInfo.landlord != msg.sender, "Cannt clinch a deal with yourself!");
 		require(hsReInfo.state == defaultState, "House State is not in release");
+		if (now > hsReInfo.dealineTime) {
+			hsReleaseInfos[houseIds].state = HouseState.Cance; 
+			revert("The released house has expired!")
+		}
 		_;
 	}
 
@@ -151,22 +155,12 @@ contract RentBasic {
 		}
 		return true;
 	}
-
-	function deadReleaseHouse(bytes32 _houseId) returns(bool) {
-		HouseReleaseInfo hsRelInfo = hsReleaseInfos[_houseId];
-		HouseInfo hsInfo = houseInfos[_houseId];
-		require(msg.sender == hsInfo.landlord, "Only landlord can cancle the release house!");
-		if (now > hsRelInfo.dealineTime && hsRelInfo.state == HouseState.Renting) {
-			hsReleaseInfos[_houseId].state = HouseState.Cance;
-			return true;
-		}
-		return false;
-	}
-	function requestSign(bytes32 _houseId, uint256 _realRent) public onlyLogin checkReq(_houseId) returns (HouseState,address){
+    // _deposit: 押金
+	function requestSign(bytes32 _houseId, uint256 _realRent, uint256 _deposit) public onlyLogin checkReq(_houseId) returns (HouseState,address){
 		address sender = msg.sender;
-		require(token.transferFrom(sender, saveTenanantAddr, _realRent), "Tenat's BLT not enough !");
+		require(token.transferFrom(sender, saveTenanantAddr, _deposit), "Tenat's BLT not enough !");
 		hsReleaseInfos[_houseId].state = HouseState.WaitRent;
-		bonds[_houseId][msg.sender] = _realRent;
+		bonds[_houseId][msg.sender] = _deposit; // 押金
 		l2rMaps[houseInfos[_houseId].landlord] = sender;
 		RequestSign(sender, _houseId, _realRent, saveTenanantAddr);
 		return (HouseState.WaitRent, houseInfos[_houseId].landlord);
@@ -213,6 +207,12 @@ contract RentBasic {
 		HouseReleaseInfo RelInfo = hsReleaseInfos[_houseId];
 		require(RelInfo.existed, "Require the house is existed !");
 		return (RelInfo.state, RelInfo.tenancy, RelInfo.rent, RelInfo.releaseTime, RelInfo.dealineTime, RelInfo.existed);		
+	}
+	// 能否签约
+	function canSign(bytes32 _houseId) public returns(bool) {
+		HouseReleaseInfo RelInfo = hsReleaseInfos[_houseId];
+		require(RelInfo.existed, "Require the house is existed !");
+		return RelInfo.state == HouseState.WaitRent;		
 	}
 	function houseExist(bytes32 _houseId) public returns(bool) {
 		if (hsReleaseInfos[_houseId].existed && hsReleaseInfos[_houseId].state == HouseState.WaitRent) {
