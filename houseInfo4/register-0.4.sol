@@ -34,8 +34,7 @@ contract UserRegister {
 	modifier onlyAdmin() {
         _;
 	}
-	modifier checkLogin() {
-		 address _userAddr = msg.sender;
+	modifier checkLogin(address _userAddr) {
 		 require(isExitUserAddress(_userAddr), "User must be created first！");
 	     require(!isLogin(_userAddr), "User already login!");
 	     _;
@@ -100,25 +99,17 @@ contract UserRegister {
 	    }
 		return false;
 	}
-	// 直接付费
-	function login() public checkLogin() returns(bool) {
-		 address _userAddr = msg.sender;
-	     userLogins[_userAddr] = true;
-     	 userStruct[_userAddr].state = 2;
-	 	 LoginEvent(_userAddr, userStruct[_userAddr].username);
-	 	 return true;
+
+	function login(address _userAddr, string _userName, string _pwd) public checkLogin(_userAddr) returns(bool) {
+	     UserStruct user = userStruct[_userAddr];
+	     if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd) && user.userAddress == _userAddr) {
+	     	userLogins[_userAddr] = true;
+	     	userStruct[_userAddr].state = 2;
+		 	LoginEvent(_userAddr, _userName);
+		 	return true;
+	     }
+		 return false;
 	}
-    // 支持其他地址付费
-	// function login(address _userAddr, string _userName, string _pwd) public checkLogin(_userAddr) returns(bool) {
-	//      UserStruct user = userStruct[_userAddr];
-	//      if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd) && user.userAddress == _userAddr) {
-	//      	userLogins[_userAddr] = true;
-	//      	userStruct[_userAddr].state = 2;
-	// 	 	LoginEvent(_userAddr, _userName);
-	// 	 	return true;
-	//      }
-	// 	 return false;
-	// }
 	function compareStr(string _str1, string _str2) public returns(bool) {
         if(keccak256(abi.encodePacked(_str1)) == keccak256(abi.encodePacked(_str2))) {
             return true;

@@ -28,6 +28,7 @@ contract Authentication {
 	event ApproveUpdate(address indexed owner, address indexed _addr); // 超级管理员允许用户修改房屋xinx
 	event UpdateHouse(address indexed _owner, bytes32 _oldId, bytes32 _newId); // 更新授权信息
 	event ShiftHouse(address indexed _addr, address indexed _newOwner, string _newowername);
+	event CancleVisit(address indexed _landlord, address indexed  _addr, bytes32 houseId);
 
 	modifier onlyOwner() {
 		require(msg.sender == owner, "Only the contract creater can operate!");
@@ -87,6 +88,17 @@ contract Authentication {
 		require(authCtxs[sender].isAuth, "House is not exist, please authenticate the house!");
 		approvelists[_addr] = InspctCtx(sender, authCtxs[sender].houseId, true);
 		ApproveVist(sender, _addr, authCtxs[sender].houseId);
+		return true;
+	}
+	// 取消授权
+	function cancleApprove(address _landlord, address _addr) public returns(bool) {
+		require(authCtxs[_landlord].isAuth, "House is not exist, please authenticate the house!");
+		require(approvelists[_addr].approver == _landlord, "The house is not the approve!");
+		if (approvelists[_addr].canInspct) {
+			return false
+		}
+		delete approvelists[_addr];
+		CancleVisit(_landlord, _addr, authCtxs[sender].houseId); // _landlord取消对_addr的授权
 		return true;
 	}
 	// 查看房屋所有权

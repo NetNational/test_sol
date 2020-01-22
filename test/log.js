@@ -1,4 +1,4 @@
-Web3 {
+Contract {
   currentProvider: [Getter/Setter],
   _requestManager: RequestManager {
     provider: HttpProvider {
@@ -111,635 +111,341 @@ Web3 {
     },
     Method: [Function: Method]
   },
-  version: '1.2.1',
-  utils: {
-    _fireError: [Function: _fireError],
-    _jsonInterfaceMethodToString: [Function: _jsonInterfaceMethodToString],
-    _flattenTypes: [Function: _flattenTypes],
-    randomHex: [Function: randomHex],
-    _: [Function: _] {
-      _: [Circular],
-      VERSION: '1.9.1',
-      iteratee: [Function: builtinIteratee],
-      forEach: [Function],
-      each: [Function],
-      collect: [Function],
-      map: [Function],
-      inject: [Function],
-      foldl: [Function],
-      reduce: [Function],
-      foldr: [Function],
-      reduceRight: [Function],
-      detect: [Function],
-      find: [Function],
-      select: [Function],
-      filter: [Function],
-      reject: [Function],
-      all: [Function],
-      every: [Function],
-      any: [Function],
-      some: [Function],
-      include: [Function],
-      includes: [Function],
-      contains: [Function],
-      invoke: [Function],
-      pluck: [Function],
-      where: [Function],
-      findWhere: [Function],
-      max: [Function],
-      min: [Function],
-      shuffle: [Function],
-      sample: [Function],
-      sortBy: [Function],
-      groupBy: [Function],
-      indexBy: [Function],
-      countBy: [Function],
-      toArray: [Function],
-      size: [Function],
-      partition: [Function],
-      take: [Function],
-      head: [Function],
-      first: [Function],
-      initial: [Function],
-      last: [Function],
-      drop: [Function],
-      tail: [Function],
-      rest: [Function],
-      compact: [Function],
-      flatten: [Function],
-      without: [Function],
-      unique: [Function],
-      uniq: [Function],
-      union: [Function],
-      intersection: [Function],
-      difference: [Function],
-      unzip: [Function],
-      zip: [Function],
-      object: [Function],
-      findIndex: [Function],
-      findLastIndex: [Function],
-      sortedIndex: [Function],
-      indexOf: [Function],
-      lastIndexOf: [Function],
-      range: [Function],
-      chunk: [Function],
-      bind: [Function],
-      partial: [Function],
-      bindAll: [Function],
-      memoize: [Function],
-      delay: [Function],
-      defer: [Function: bound],
-      throttle: [Function],
-      debounce: [Function],
-      wrap: [Function],
-      negate: [Function],
-      compose: [Function],
-      after: [Function],
-      before: [Function],
-      once: [Function: bound],
-      restArguments: [Function: restArguments],
-      keys: [Function],
-      allKeys: [Function],
-      values: [Function],
-      mapObject: [Function],
-      pairs: [Function],
-      invert: [Function],
-      methods: [Function],
-      functions: [Function],
-      extend: [Function],
-      assign: [Function],
-      extendOwn: [Function],
-      findKey: [Function],
-      pick: [Function],
-      omit: [Function],
-      defaults: [Function],
-      create: [Function],
-      clone: [Function],
-      tap: [Function],
-      isMatch: [Function],
-      isEqual: [Function],
-      isEmpty: [Function],
-      isElement: [Function],
-      isArray: [Function: isArray],
-      isObject: [Function],
-      isArguments: [Function],
-      isFunction: [Function],
-      isString: [Function],
-      isNumber: [Function],
-      isDate: [Function],
-      isRegExp: [Function],
-      isError: [Function],
-      isSymbol: [Function],
-      isMap: [Function],
-      isWeakMap: [Function],
-      isSet: [Function],
-      isWeakSet: [Function],
-      isFinite: [Function],
-      isNaN: [Function],
-      isBoolean: [Function],
-      isNull: [Function],
-      isUndefined: [Function],
-      has: [Function],
-      noConflict: [Function],
-      identity: [Function],
-      constant: [Function],
-      noop: [Function],
-      property: [Function],
-      propertyOf: [Function],
-      matches: [Function],
-      matcher: [Function],
-      times: [Function],
-      random: [Function],
-      now: [Function: now],
-      escape: [Function],
-      unescape: [Function],
-      result: [Function],
-      uniqueId: [Function],
-      templateSettings: [Object],
-      template: [Function],
-      chain: [Function],
-      mixin: [Function]
-    },
-    BN: [Function: BN] {
-      BN: [Circular],
-      wordSize: 26,
-      isBN: [Function: isBN],
-      max: [Function: max],
-      min: [Function: min],
-      red: [Function: red],
-      _prime: [Function: prime],
-      mont: [Function: mont]
-    },
-    isBN: [Function: isBN],
-    isBigNumber: [Function: isBigNumber],
-    isHex: [Function: isHex],
-    isHexStrict: [Function: isHexStrict],
-    sha3: [Function: sha3] { _Hash: [Object] },
-    keccak256: [Function: sha3] { _Hash: [Object] },
-    soliditySha3: [Function: soliditySha3],
-    isAddress: [Function: isAddress],
-    checkAddressChecksum: [Function: checkAddressChecksum],
-    toChecksumAddress: [Function: toChecksumAddress],
-    toHex: [Function: toHex],
-    toBN: [Function: toBN],
-    bytesToHex: [Function: bytesToHex],
-    hexToBytes: [Function: hexToBytes],
-    hexToNumberString: [Function: hexToNumberString],
-    hexToNumber: [Function: hexToNumber],
-    toDecimal: [Function: hexToNumber],
-    numberToHex: [Function: numberToHex],
-    fromDecimal: [Function: numberToHex],
-    hexToUtf8: [Function: hexToUtf8],
-    hexToString: [Function: hexToUtf8],
-    toUtf8: [Function: hexToUtf8],
-    utf8ToHex: [Function: utf8ToHex],
-    stringToHex: [Function: utf8ToHex],
-    fromUtf8: [Function: utf8ToHex],
-    hexToAscii: [Function: hexToAscii],
-    toAscii: [Function: hexToAscii],
-    asciiToHex: [Function: asciiToHex],
-    fromAscii: [Function: asciiToHex],
-    unitMap: {
-      noether: '0',
-      wei: '1',
-      kwei: '1000',
-      Kwei: '1000',
-      babbage: '1000',
-      femtoether: '1000',
-      mwei: '1000000',
-      Mwei: '1000000',
-      lovelace: '1000000',
-      picoether: '1000000',
-      gwei: '1000000000',
-      Gwei: '1000000000',
-      shannon: '1000000000',
-      nanoether: '1000000000',
-      nano: '1000000000',
-      szabo: '1000000000000',
-      microether: '1000000000000',
-      micro: '1000000000000',
-      finney: '1000000000000000',
-      milliether: '1000000000000000',
-      milli: '1000000000000000',
-      ether: '1000000000000000000',
-      kether: '1000000000000000000000',
-      grand: '1000000000000000000000',
-      mether: '1000000000000000000000000',
-      gether: '1000000000000000000000000000',
-      tether: '1000000000000000000000000000000'
-    },
-    toWei: [Function: toWei],
-    fromWei: [Function: fromWei],
-    padLeft: [Function: leftPad],
-    leftPad: [Function: leftPad],
-    padRight: [Function: rightPad],
-    rightPad: [Function: rightPad],
-    toTwosComplement: [Function: toTwosComplement]
+  clearSubscriptions: [Function],
+  options: {
+    gasPrice: '3000000',
+    data: undefined,
+    from: undefined,
+    gas: undefined,
+    address: [Getter/Setter],
+    jsonInterface: [Getter/Setter]
   },
-  eth: Eth {
-    currentProvider: [Getter/Setter],
-    _requestManager: RequestManager {
-      provider: [HttpProvider],
-      providers: [Object],
-      subscriptions: {}
-    },
-    givenProvider: null,
-    providers: {
-      WebsocketProvider: [Function: WebsocketProvider],
-      HttpProvider: [Function: HttpProvider],
-      IpcProvider: [Function: IpcProvider]
-    },
-    _provider: HttpProvider {
-      host: 'https://ropsten.infura.io/v3/2571ab4c0de14ffb87392fb9c3904375',
-      httpsAgent: [Agent],
-      timeout: 0,
-      headers: undefined,
-      connected: false
-    },
-    setProvider: [Function],
-    BatchRequest: [Function: bound Batch],
-    extend: [Function: ex] {
-      formatters: [Object],
-      utils: [Object],
-      Method: [Function: Method]
-    },
-    defaultAccount: [Getter/Setter],
-    defaultBlock: [Getter/Setter],
-    clearSubscriptions: [Function],
-    net: Net {
-      currentProvider: [Getter/Setter],
-      _requestManager: [RequestManager],
-      givenProvider: null,
-      providers: [Object],
-      _provider: [HttpProvider],
-      setProvider: [Function],
-      BatchRequest: [Function: bound Batch],
-      extend: [Function],
-      getId: [Function],
-      isListening: [Function],
-      getPeerCount: [Function],
-      getNetworkType: [Function: bound getNetworkType]
-    },
-    accounts: Accounts {
-      currentProvider: [Getter/Setter],
-      _requestManager: [RequestManager],
-      givenProvider: null,
-      providers: [Object],
-      _provider: [HttpProvider],
-      setProvider: [Function],
-      _ethereumCall: [Object],
-      wallet: [Wallet]
-    },
-    personal: Personal {
-      currentProvider: [Getter/Setter],
-      _requestManager: [RequestManager],
-      givenProvider: null,
-      providers: [Object],
-      _provider: [HttpProvider],
-      setProvider: [Function],
-      BatchRequest: [Function: bound Batch],
-      extend: [Function],
-      net: [Net],
-      defaultAccount: [Getter/Setter],
-      defaultBlock: [Getter/Setter],
-      getAccounts: [Function],
-      newAccount: [Function],
-      unlockAccount: [Function],
-      lockAccount: [Function],
-      importRawKey: [Function],
-      sendTransaction: [Function],
-      signTransaction: [Function],
-      sign: [Function],
-      ecRecover: [Function]
-    },
-    Contract: [Function: Contract] {
-      setProvider: [Function],
-      defaultAccount: null,
-      defaultBlock: 'latest',
-      currentProvider: [Getter/Setter],
-      _requestManager: [RequestManager],
-      givenProvider: null,
-      providers: [Object],
-      _provider: [HttpProvider],
-      BatchRequest: [Function: bound Batch],
-      extend: [Function],
-      _ethAccounts: [Accounts]
-    },
-    Iban: [Function: Iban] {
-      toAddress: [Function],
-      toIban: [Function],
-      fromAddress: [Function],
-      fromBban: [Function],
-      createIndirect: [Function],
-      isValid: [Function]
-    },
-    abi: ABICoder {},
-    ens: ENS { eth: [Circular] },
-    getNodeInfo: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'web3_clientVersion'
-    },
-    getProtocolVersion: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_protocolVersion'
-    },
-    getCoinbase: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_coinbase'
-    },
-    isMining: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_mining'
-    },
-    getHashrate: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_hashrate'
-    },
-    isSyncing: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_syncing'
-    },
-    getGasPrice: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_gasPrice'
-    },
-    getAccounts: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_accounts'
-    },
-    getBlockNumber: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_blockNumber'
-    },
-    getBalance: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getBalance'
-    },
-    getStorageAt: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getStorageAt'
-    },
-    getCode: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getCode'
-    },
-    getBlock: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: [Function: blockCall]
-    },
-    getUncle: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: [Function: uncleCall]
-    },
-    getBlockTransactionCount: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: [Function: getBlockTransactionCountCall]
-    },
-    getBlockUncleCount: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: [Function: uncleCountCall]
-    },
-    getTransaction: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getTransactionByHash'
-    },
-    getTransactionFromBlock: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: [Function: transactionFromBlockCall]
-    },
-    getTransactionReceipt: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getTransactionReceipt'
-    },
-    getTransactionCount: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getTransactionCount'
-    },
-    sendSignedTransaction: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_sendRawTransaction'
-    },
-    signTransaction: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_signTransaction'
-    },
-    sendTransaction: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_sendTransaction'
-    },
-    sign: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_sign'
-    },
-    call: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_call'
-    },
-    estimateGas: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_estimateGas'
-    },
-    submitWork: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_submitWork'
-    },
-    getWork: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getWork'
-    },
-    getPastLogs: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'eth_getLogs'
-    },
-    subscribe: [Function]
+  defaultAccount: [Getter/Setter],
+  defaultBlock: [Getter/Setter],
+  methods: {
+    approve: [Function: bound _createTxObject],
+    '0x095ea7b3': [Function: bound _createTxObject],
+    'approve(address,uint256)': [Function: bound _createTxObject],
+    transfer: [Function: bound _createTxObject],
+    '0xa9059cbb': [Function: bound _createTxObject],
+    'transfer(address,uint256)': [Function: bound _createTxObject],
+    transferFrom: [Function: bound _createTxObject],
+    '0x23b872dd': [Function: bound _createTxObject],
+    'transferFrom(address,address,uint256)': [Function: bound _createTxObject],
+    _increaseInterval: [Function: bound _createTxObject],
+    '0x5ae4ac80': [Function: bound _createTxObject],
+    '_increaseInterval()': [Function: bound _createTxObject],
+    _maxIncreaseAmount: [Function: bound _createTxObject],
+    '0x47fb39f9': [Function: bound _createTxObject],
+    '_maxIncreaseAmount()': [Function: bound _createTxObject],
+    _totalSupply: [Function: bound _createTxObject],
+    '0x3eaaf86b': [Function: bound _createTxObject],
+    '_totalSupply()': [Function: bound _createTxObject],
+    allowance: [Function: bound _createTxObject],
+    '0xdd62ed3e': [Function: bound _createTxObject],
+    'allowance(address,address)': [Function: bound _createTxObject],
+    allowed: [Function: bound _createTxObject],
+    '0x5c658165': [Function: bound _createTxObject],
+    'allowed(address,address)': [Function: bound _createTxObject],
+    approvedInvestorList: [Function: bound _createTxObject],
+    '0x7fc1970e': [Function: bound _createTxObject],
+    'approvedInvestorList(address)': [Function: bound _createTxObject],
+    balanceOf: [Function: bound _createTxObject],
+    '0x70a08231': [Function: bound _createTxObject],
+    'balanceOf(address)': [Function: bound _createTxObject],
+    balances: [Function: bound _createTxObject],
+    '0x27e235e3': [Function: bound _createTxObject],
+    'balances(address)': [Function: bound _createTxObject],
+    decimals: [Function: bound _createTxObject],
+    '0x313ce567': [Function: bound _createTxObject],
+    'decimals()': [Function: bound _createTxObject],
+    deposit: [Function: bound _createTxObject],
+    '0xf340fa01': [Function: bound _createTxObject],
+    'deposit(address)': [Function: bound _createTxObject],
+    getDeposit: [Function: bound _createTxObject],
+    '0xe1254fba': [Function: bound _createTxObject],
+    'getDeposit(address)': [Function: bound _createTxObject],
+    isApprovedInvestor: [Function: bound _createTxObject],
+    '0x9b1fe0d4': [Function: bound _createTxObject],
+    'isApprovedInvestor(address)': [Function: bound _createTxObject],
+    isToken: [Function: bound _createTxObject],
+    '0xeefa597b': [Function: bound _createTxObject],
+    'isToken()': [Function: bound _createTxObject],
+    name: [Function: bound _createTxObject],
+    '0x06fdde03': [Function: bound _createTxObject],
+    'name()': [Function: bound _createTxObject],
+    owner: [Function: bound _createTxObject],
+    '0x8da5cb5b': [Function: bound _createTxObject],
+    'owner()': [Function: bound _createTxObject],
+    releaseTokenTime: [Function: bound _createTxObject],
+    '0x364e74eb': [Function: bound _createTxObject],
+    'releaseTokenTime()': [Function: bound _createTxObject],
+    symbol: [Function: bound _createTxObject],
+    '0x95d89b41': [Function: bound _createTxObject],
+    'symbol()': [Function: bound _createTxObject],
+    totalSupply: [Function: bound _createTxObject],
+    '0x18160ddd': [Function: bound _createTxObject],
+    'totalSupply()': [Function: bound _createTxObject],
+    totalTokenSold: [Function: bound _createTxObject],
+    '0xb5f7f636': [Function: bound _createTxObject],
+    'totalTokenSold()': [Function: bound _createTxObject]
   },
-  shh: Shh {
-    currentProvider: [Getter/Setter],
-    _requestManager: RequestManager {
-      provider: [HttpProvider],
-      providers: [Object],
-      subscriptions: {}
+  events: {
+    Transfer: [Function: bound ],
+    '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef': [Function: bound ],
+    'Transfer(address,address,uint256)': [Function: bound ],
+    Approval: [Function: bound ],
+    '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925': [Function: bound ],
+    'Approval(address,address,uint256)': [Function: bound ],
+    allEvents: [Function: bound ]
+  },
+  _address: '0xfed21AB2993fAa0E0B2Ab92752428D96370d4889',
+  _jsonInterface: [
+    {
+      constant: false,
+      inputs: [Array],
+      name: 'approve',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'nonpayable',
+      type: 'function',
+      signature: '0x095ea7b3'
     },
-    givenProvider: null,
-    providers: {
-      WebsocketProvider: [Function: WebsocketProvider],
-      HttpProvider: [Function: HttpProvider],
-      IpcProvider: [Function: IpcProvider]
+    {
+      constant: false,
+      inputs: [Array],
+      name: 'transfer',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'nonpayable',
+      type: 'function',
+      signature: '0xa9059cbb'
     },
-    _provider: HttpProvider {
-      host: 'https://ropsten.infura.io/v3/2571ab4c0de14ffb87392fb9c3904375',
-      httpsAgent: [Agent],
-      timeout: 0,
-      headers: undefined,
-      connected: false
+    {
+      constant: false,
+      inputs: [Array],
+      name: 'transferFrom',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'nonpayable',
+      type: 'function',
+      signature: '0x23b872dd'
     },
-    setProvider: [Function],
-    BatchRequest: [Function: bound Batch],
-    extend: [Function: ex] {
-      formatters: [Object],
-      utils: [Object],
-      Method: [Function: Method]
+    {
+      inputs: [],
+      payable: false,
+      stateMutability: 'nonpayable',
+      type: 'constructor',
+      constant: undefined
     },
-    net: Net {
-      currentProvider: [Getter/Setter],
-      _requestManager: [RequestManager],
-      givenProvider: null,
-      providers: [Object],
-      _provider: [HttpProvider],
-      setProvider: [Function],
-      BatchRequest: [Function: bound Batch],
-      extend: [Function],
-      getId: [Function],
-      isListening: [Function],
-      getPeerCount: [Function]
+    {
+      anonymous: false,
+      inputs: [Array],
+      name: 'Transfer',
+      type: 'event',
+      constant: undefined,
+      payable: undefined,
+      signature: '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
     },
-    subscribe: [Function],
-    getVersion: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_version'
+    {
+      anonymous: false,
+      inputs: [Array],
+      name: 'Approval',
+      type: 'event',
+      constant: undefined,
+      payable: undefined,
+      signature: '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925'
     },
-    getInfo: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_info'
+    {
+      constant: true,
+      inputs: [],
+      name: '_increaseInterval',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x5ae4ac80'
     },
-    setMaxMessageSize: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_setMaxMessageSize'
+    {
+      constant: true,
+      inputs: [],
+      name: '_maxIncreaseAmount',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x47fb39f9'
     },
-    setMinPoW: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_setMinPoW'
+    {
+      constant: true,
+      inputs: [],
+      name: '_totalSupply',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x3eaaf86b'
     },
-    markTrustedPeer: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_markTrustedPeer'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'allowance',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0xdd62ed3e'
     },
-    newKeyPair: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_newKeyPair'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'allowed',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x5c658165'
     },
-    addPrivateKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_addPrivateKey'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'approvedInvestorList',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x7fc1970e'
     },
-    deleteKeyPair: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_deleteKeyPair'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'balanceOf',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x70a08231'
     },
-    hasKeyPair: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_hasKeyPair'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'balances',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x27e235e3'
     },
-    getPublicKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_getPublicKey'
+    {
+      constant: true,
+      inputs: [],
+      name: 'decimals',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x313ce567'
     },
-    getPrivateKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_getPrivateKey'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'deposit',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0xf340fa01'
     },
-    newSymKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_newSymKey'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'getDeposit',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0xe1254fba'
     },
-    addSymKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_addSymKey'
+    {
+      constant: true,
+      inputs: [Array],
+      name: 'isApprovedInvestor',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x9b1fe0d4'
     },
-    generateSymKeyFromPassword: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_generateSymKeyFromPassword'
+    {
+      constant: true,
+      inputs: [],
+      name: 'isToken',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'pure',
+      type: 'function',
+      signature: '0xeefa597b'
     },
-    hasSymKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_hasSymKey'
+    {
+      constant: true,
+      inputs: [],
+      name: 'name',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x06fdde03'
     },
-    getSymKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_getSymKey'
+    {
+      constant: true,
+      inputs: [],
+      name: 'owner',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x8da5cb5b'
     },
-    deleteSymKey: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_deleteSymKey'
+    {
+      constant: true,
+      inputs: [],
+      name: 'releaseTokenTime',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x364e74eb'
     },
-    newMessageFilter: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_newMessageFilter'
+    {
+      constant: true,
+      inputs: [],
+      name: 'symbol',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x95d89b41'
     },
-    getFilterMessages: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_getFilterMessages'
+    {
+      constant: true,
+      inputs: [],
+      name: 'totalSupply',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0x18160ddd'
     },
-    deleteMessageFilter: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_deleteMessageFilter'
-    },
-    post: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_post'
-    },
-    unsubscribe: [Function: send] {
-      method: [Method],
-      request: [Function: bound ],
-      call: 'shh_unsubscribe'
+    {
+      constant: true,
+      inputs: [],
+      name: 'totalTokenSold',
+      outputs: [Array],
+      payable: false,
+      stateMutability: 'view',
+      type: 'function',
+      signature: '0xb5f7f636'
     }
-  },
-  bzz: Bzz {
-    givenProvider: null,
-    currentProvider: null,
-    isAvailable: [Function],
-    upload: [Function],
-    download: [Function]
-  }
+  ]
 }
-[Finished in 8.8s]
+[Finished in 20.5s]
