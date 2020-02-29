@@ -12,23 +12,25 @@ contract UserRegister {
 	    string username;
 	    string pwd;
 	}
+	struct AllowStruct {
+		address allowedAddr; // 被授权访问的地址
+		uint    time; // 授权访问截止时间
+	}
+	mapping(address => bool) visitLists; // 授权访问某个地址
 
 	//定义用户列表数据结构
 	struct UserListStruct {
 	    address userAddress;
 	    uint index;
 	}
-	struct AllowStruct {
-		address allowedAddr; // 被授权访问的地址
-		uint    time; // 授权访问截止时间
-		bool    existed; // 是否存在
-	}
+
 	address[] userAddresses; //所有地址集合
 	string[] usernames; //所有用户名集合
 	mapping(address => UserStruct) private userStruct; //账户个人信息
+
 	mapping(string => UserListStruct) private userListStruct; //用户名映射地址
 	mapping(address => bool) userLogins; // 判断用户是否登录
-    mapping(address => AllowStruct) visitLists; // 授权访问某个地址
+
 	event CreateUser(address indexed _userAddress, string _username, uint _userId); // 创建User事件
 	event UpdateUser(address indexed _userAddr, string _userName, uint _userId);
 	event LoginEvent(address indexed _userAddr, string _userName);
@@ -83,8 +85,7 @@ contract UserRegister {
 	}
 	//获取用户个人信息
 	function findUser(address _userAddress) public constant returns (address,uint, string, uint, uint) {
-	    require(isExitUserAddress(_userAddress), "this user is not existed");
-	    require(visitLists[msg.sender].existed && (visitLists[msg.sender].allowedAddr == _userAddress), "address is not allowed to visit!");
+	    require(isExitUserAddress(_userAddress));
 	    return (
 	        userStruct[_userAddress].userAddress,
 	        userStruct[_userAddress].userId,
@@ -105,24 +106,24 @@ contract UserRegister {
 		return false;
 	}
 	// 直接付费
-// 	function login() public checkLogin() returns(bool) {
-// 		 address _userAddr = msg.sender;
-// 	     userLogins[_userAddr] = true;
-//      	 userStruct[_userAddr].state = 2;
-// 	 	 LoginEvent(_userAddr, userStruct[_userAddr].username);
-// 	 	 return true;
-// 	}
-    // 支持其他地址付费
-	function login(address _userAddr, string _userName, string _pwd) public checkLogin() returns(bool) {
-	     UserStruct user = userStruct[_userAddr];
-	     if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd) && user.userAddress == _userAddr) {
-	     	userLogins[_userAddr] = true;
-	     	userStruct[_userAddr].state = 2;
-		 	LoginEvent(_userAddr, _userName);
-		 	return true;
-	     }
-		 return false;
+	function login() public checkLogin() returns(bool) {
+		 address _userAddr = msg.sender;
+	     userLogins[_userAddr] = true;
+     	 userStruct[_userAddr].state = 2;
+	 	 LoginEvent(_userAddr, userStruct[_userAddr].username);
+	 	 return true;
 	}
+    // 支持其他地址付费
+	// function login(address _userAddr, string _userName, string _pwd) public checkLogin(_userAddr) returns(bool) {
+	//      UserStruct user = userStruct[_userAddr];
+	//      if (compareStr(user.username, _userName) && compareStr(user.pwd, _pwd) && user.userAddress == _userAddr) {
+	//      	userLogins[_userAddr] = true;
+	//      	userStruct[_userAddr].state = 2;
+	// 	 	LoginEvent(_userAddr, _userName);
+	// 	 	return true;
+	//      }
+	// 	 return false;
+	// }
 	function compareStr(string _str1, string _str2) public returns(bool) {
         if(keccak256(abi.encodePacked(_str1)) == keccak256(abi.encodePacked(_str2))) {
             return true;
@@ -153,27 +154,17 @@ contract UserRegister {
 	}
 
 	// 授权某人访问
-	function approveVisit(address _addr, uint _howlong) public returns(bool) {
-		address sender = msg.sender;
-		visitLists[_addr] = AllowStruct(sender, _howlong, true);
-		return true;
+	function approveVisit() {
+		
 	}
 	// 授权用户找回密码
 	function approveFindPwd() public onlyAdmin returns(bool) {
 
 	}
 	// // 找回密码
-	function findAllInfo() public  returns(address,uint, string, uint, uint, string) {
-		// 必须被管理员授权
-		address _userAddress = msg.sender;
-		require(userLogins[_userAddress], "This user is not existed!");
-		return (
-	        userStruct[_userAddress].userAddress,
-	        userStruct[_userAddress].userId,
-	        userStruct[_userAddress].username,
-	        userStruct[_userAddress].time,
-	        userStruct[_userAddress].index,
-	        userStruct[_userAddress].pwd);
-		 
-	}
+	// function findPwd() public  returns(string) {
+	// 	// 必须被管理员授权
+	// 	address sender = msg.sender;
+	// 	require(userStruct[sender])
+	// }
 }

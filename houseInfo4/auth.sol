@@ -3,8 +3,8 @@ pragma solidity ^0.4.24;
 contract Authentication {
 	// 房屋所有权信息
 	struct AuthCtx {
-		uint idCard; // 业主身份证
-		uint    guid; //房屋的唯一码
+		string idCard; // 业主身份证
+		string    guid; //房屋的唯一码
 		string  owername; // 业主名字
 		bytes32 houseId; // 房屋id
 		bool    isAuth; // 是否已经认证
@@ -18,7 +18,7 @@ contract Authentication {
 	mapping(address => InspctCtx) approvelists; // 拥有查看某个房屋的所有权的列表
 	mapping(address => AuthCtx)   authCtxs; // owner address => 房屋所有权信息
 	mapping(address => bool)  agreetlists; // 同意修改授权
-	mapping(uint256 => bool)  alAuthlist; //已经认证房源列表
+	mapping(string => bool)  alAuthlist; //已经认证房源列表
 	mapping(uint256 => bytes32[]) houseIdSets; // 房源houseId历史集合(guid => houseId集合)
 	mapping(bytes32 => bytes32[]) ids; // 房屋id=>每次房屋发布对应的id
 	bytes32 public houseId;
@@ -70,7 +70,7 @@ contract Authentication {
 		return trans[trans.length-1];
 	}
 	// 认证房屋, 主要依靠房屋的唯一码（GUID）+业主身份证+业主姓名
-	function authHouse(uint _idCard, uint _guid, string _owername) public returns(bytes32) {
+	function authHouse(string _idCard, string _guid, string _owername) public returns(bytes32) {
 		require(!alAuthlist[_guid], "This house already be Authentication!");
 		address sender = msg.sender;
 		bytes32 houseIds = keccak256(abi.encodePacked(sender, _idCard, _guid, _owername));
@@ -89,25 +89,25 @@ contract Authentication {
 		approvelists[_addr] = InspctCtx(sender, authCtxs[sender].houseId, true);
 		ApproveVist(sender, _addr, authCtxs[sender].houseId);
 		return true;
+	}	
+	// 查看房屋所有权
+	function getHouseOwer(address _approver) public returns(string, string, string) {
+		address sender = msg.sender;
+		require(approvelists[sender].canInspct, "The address need be approve visit the house");
+		address houseOwner = approvelists[sender].approver;
+		AuthCtx tempCtx = authCtxs[houseOwner];
+		return (tempCtx.idCard, tempCtx.guid, tempCtx.owername);
 	}
 	// 取消授权
 	function cancleApprove(address _landlord, address _addr) public returns(bool) {
 		require(authCtxs[_landlord].isAuth, "House is not exist, please authenticate the house!");
 		require(approvelists[_addr].approver == _landlord, "The house is not the approve!");
 		if (approvelists[_addr].canInspct) {
-			return false
+			return false;
 		}
 		delete approvelists[_addr];
-		CancleVisit(_landlord, _addr, authCtxs[sender].houseId); // _landlord取消对_addr的授权
+		CancleVisit(_landlord, _addr, authCtxs[_landlord].houseId); // _landlord取消对_addr的授权
 		return true;
-	}
-	// 查看房屋所有权
-	function getHouseOwer(address _approver) public returns(uint, uint, string, bytes32) {
-		address sender = msg.sender;
-		require(approvelists[sender].canInspct, "The address need be approve visit the house");
-		address houseOwner = approvelists[sender].approver;
-		AuthCtx tempCtx = authCtxs[houseOwner];
-		return (tempCtx.idCard, tempCtx.guid, tempCtx.owername, tempCtx.houseId);
 	}
 	// 允许授权更新
 	function approveUpdate(address _addr) public onlyOwner returns(bool) {
@@ -116,7 +116,7 @@ contract Authentication {
 		return true;
 	} 
 	// 更新房屋信息
-	function updateHouse(uint _idCard, uint _guid, string _owername) public onlyApprove returns(bytes32) {
+	function updateHouse(string _idCard, string _guid, string _owername) public onlyApprove returns(bytes32) {
 		address _addr = msg.sender;
 		require(authCtxs[_addr].isAuth, "House is not authenticated!");
 		bytes32 _oldId = authCtxs[_addr].houseId;
@@ -127,7 +127,7 @@ contract Authentication {
 		return _newId;
 	}
 	// 将房屋卖给别人
-	function shiftHouse(address _newOwner, uint _newidCard, uint _guid, string _newowername) public returns(bytes32) {
+	function shiftHouse(address _newOwner, string _newidCard, string _guid, string _newowername) public returns(bytes32) {
 		address _addr = msg.sender;
 		require(authCtxs[_addr].isAuth, "House is not authenticated!");
 		bytes32 _oldId = authCtxs[_addr].houseId;

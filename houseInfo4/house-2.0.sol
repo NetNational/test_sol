@@ -11,8 +11,8 @@ interface RegisterInterface {
 	function isRegister() public constant returns(bool isIndeed);
 }
 interface RemarkInterface {
-	function isRemarkContract() public constant returns(bool isIndeed);
-	function commentHouse(bytes32 _houseId, address _landlord, address _refeAddr, uint8 _ratingIndex, string _ramark) public returns(bool);
+  function isRemarkContract() public constant returns(bool isIndeed);
+  function commentHouse(bytes32 _houseId, address _landlord, address _refeAddr, uint8 _ratingIndex, string _ramark) public returns(bool);
 }
 interface AuthInterface {
 	function contrctExist() public constant returns(bool);
@@ -117,10 +117,10 @@ contract RentBasic {
 		HouseInfo hsInfo = houseInfos[_houseId];
 		HouseReleaseInfo hsReInfo = hsReleaseInfos[_houseId];
 		require(hsReInfo.existed, "House is not existed");
-		reqiure(hsInfo.landlord != msg.sender, "Cannt clinch a deal with yourself!");
+		require(hsInfo.landlord != msg.sender, "Cannt clinch a deal with yourself!");
 		require(hsReInfo.state == defaultState, "House State is not in release");
 		if (now > hsReInfo.dealineTime) {
-			hsReleaseInfos[houseIds].state = HouseState.Cance; 
+			hsReleaseInfos[_houseId].state = HouseState.Cance; 
 			revert("The released house has expired!");
 		}
 		_;
@@ -182,9 +182,10 @@ contract RentBasic {
 	 	HouseReleaseInfo reInfo = hsReleaseInfos[_houseId];
 	 	require(reInfo.existed && reInfo.ischecked, "Not find the house or it has not checked!");
 	 	require(reInfo.state == HouseState.EndRent || reInfo.state == HouseState.Cance, "House rent is not finished, if you want break the rent, please break contract first!");
-	 	require(amount > 0 && addrMoney[msg.sender] >= amount, "Amount must greater than 0 and less than promise amount!");
+	 	require(amount > 0, "Amount must be greater than 0!");
 	 	address sender = msg.sender;
 	 	if (sender == hs.landlord) { 
+	 		require(addrMoney[msg.sender] >= amount, "Amount must be less than promise amount!");
 	 		addrMoney[msg.sender] = addrMoney[msg.sender] - amount; // decrease the landlord promise amount.
 	 		require(token.transferFrom(recPromiseAddr, sender, amount), "Withdraw error, from recPromiseAddr to landlord");
 	 	} else {
@@ -238,6 +239,14 @@ contract RentBasic {
 		authContract.cancleApprove(land, l2rMaps[land]);
 		return true;
 	}
+	// @dev judgeStatue
+	function isRenting(bytes32 _houseId) returns(bool) {
+		return hsReleaseInfos[_houseId].state == HouseState.EndRent;
+	}
+	/*
+	  @dev sublet 转租
+	  @des 
+	*/	
 	/*
 	  @dev breakContract
 	  @des this method call should be checked by admin, then it call be called.
@@ -271,24 +280,26 @@ contract RentBasic {
 		HouseReleaseInfo relInfo = hsReleaseInfos[_houseId];
 		require(relInfo.existed && _punishAmount >= 0, "House is not existed !");
 		require(relInfo.state == HouseState.InspcetBreak, "House is not in inspect!");
-		hsReleaseInfos[_houseId].ischecked = true;
 		HouseInfo hus = houseInfos[_houseId];
+		hsReleaseInfos[_houseId].ischecked = true;
 		address sendAddr;
 		if (_punishAddr == hus.landlord) { // 房东为被惩罚者，房东保证金扣除amount个，租客保证金加上amount个
+			require(_punishAmount <= addrMoney[hus.landlord], "Punish amount should be less than promise!");
 			addrMoney[hus.landlord] = addrMoney[hus.landlord] - _punishAmount;
 			bonds[_houseId][l2rMaps[hus.landlord]] = bonds[_houseId][l2rMaps[hus.landlord]] + _punishAmount;
 			sendAddr = recPromiseAddr;
-			authContract.cancleApprove(_punishAddr, l2rMaps[_punishAddr]);
+			require(authContract.cancleApprove(_punishAddr, l2rMaps[_punishAddr]), "Cancle approve is not success!");
 		} else if (_punishAddr == l2rMaps[hus.landlord]) { // 租户是被惩罚者
+			require(_punishAmount <= bonds[_houseId][_punishAddr], "Punish amount should be less than promise!");
 			bonds[_houseId][_punishAddr] = bonds[_houseId][_punishAddr] - _punishAmount;
 			addrMoney[hus.landlord] = addrMoney[hus.landlord] + _punishAmount;
 			sendAddr = saveTenanantAddr;
-			authContract.cancleApprove(hus.landlord, _punishAddr);
+			require(authContract.cancleApprove(hus.landlord, _punishAddr),"Cancle approve is not success!");
 		}
-		hsReleaseInfos[_houseId].state = HouseState.BreakRent;
 		require(token.transferFrom(sendAddr, punishAddr, _punishAmount), "transfer fail, please approve the transfer from the sendAddr to punishAddr!");
+		hsReleaseInfos[_houseId].state = HouseState.BreakRent;
 		ApprovalBreak(sender, _houseId, _punishAddr, _punishAmount);
-		return true;
+		return true;  
 	}
     // 更新审核员地址
 	function updateAuditor(address _addr, bool _flag) public returns(bool) {

@@ -7,7 +7,6 @@ interface RentBasicInterface {
 	function isExist() public constant returns(bool isIndeed);
 	function setHouseState(bytes32 _houseId) public returns(bool);
 	function canSign(bytes32 _houseId) public returns(bool); 
-	function isRenting(bytes32 _houseId) returns(bool);
 }
 
 contract TenancyAgreement {
@@ -89,20 +88,6 @@ contract TenancyAgreement {
 		LeaserSign(msg.sender, _phoneNum, _houseId);
 		return true;
 	}
-
-	// 续租
-	// modifier checkRenewal(bytes32 _houseId) {
-	// 	LeaserAgree leaseInfo = leaserAgrees[_houseId];
-		
-	// }
-
-	// function renewal(bytes32 _houseId, uint256 _realRent, uint256 _deposit, uint256 _newTenancy) public returns (HouseState, address) {
-	// 	address sender = msg.sender;
-	// 	LeaserAgree leaseInfo = leaserAgrees[_houseId];
-	// 	require(leaseInfo.leaserAddr == sender, "The sender is not the leaser!");
-	// 	reqiure(houseInterface.isRenting(_houseId), "House status not satisfy the request!");
-	// 	// require(rules[_houseId].endTime >= )
-	// }
 
 	function endRent(bytes32 _houseId) public returns(bool) {
 		require(now >= rules[_houseId].endTime, "The house is still in renting!");
